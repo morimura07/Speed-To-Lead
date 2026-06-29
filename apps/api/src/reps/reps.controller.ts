@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RepsService } from './reps.service';
-import { CreateRepDto, UpdateRepDto } from './dto/rep.dto';
+import { CreateRepDto, SetAvailabilityDto, UpdateRepDto } from './dto/rep.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/auth.types';
@@ -34,6 +34,21 @@ export class RepsController {
   @Patch(':id')
   update(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateRepDto) {
     return this.reps.update(user.orgId, id, dto);
+  }
+
+  @Patch(':id/availability')
+  setAvailability(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: SetAvailabilityDto,
+  ) {
+    return this.reps.setAvailability(user.orgId, id, dto);
+  }
+
+  /** Generate a pairing code to connect this rep's Chrome extension. */
+  @Post(':id/pairing')
+  pairing(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.reps.generatePairing(user.orgId, id);
   }
 
   @Delete(':id')

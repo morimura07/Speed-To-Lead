@@ -6,8 +6,12 @@ right sales rep — across mobile, a Chrome softphone, and push — and connects
 seconds. Reps press **1 to accept / 2 to decline**; declines and timeouts cascade to the
 next eligible rep.
 
-> **Status:** Phase 6 — analytics dashboards (speed, volume, rep performance, routing
-> health, reliability) with filters + lead drill-down. See [`docs/ROADMAP.md`](docs/ROADMAP.md)
+> **Status:** Phase 7 — Slack booking alerts (triage/closer) + Slack lead source +
+> availability-aware follow-up reminder calls. **Phases 0–7 complete.**
+> See [`docs/ROADMAP.md`](docs/ROADMAP.md)
+>
+> Note: follow-up reminders use BullMQ **delayed** jobs, which require Redis
+> `noeviction`. On Upstash set Configuration → Eviction → `noeviction`.
 > for the phased build plan and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the
 > system design.
 

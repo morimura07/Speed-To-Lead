@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { EventsModule } from './events/events.module';
 import { QueueModule } from './queue/queue.module';
 import { TelephonyModule } from './telephony/telephony.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { LicensingModule } from './licensing/licensing.module';
@@ -15,6 +16,9 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { RepsModule } from './reps/reps.module';
 import { RoutingModule } from './routing/routing.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { RemindersModule } from './reminders/reminders.module';
+import { SlackModule } from './slack/slack.module';
 
 /**
  * Root module. Feature modules are registered here as each phase lands.
@@ -34,6 +38,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     EventsModule,
     QueueModule,
     TelephonyModule,
+    CalendarModule,
     HealthModule,
     AuthModule,
     LicensingModule,
@@ -43,6 +48,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
     RepsModule,
     RoutingModule,
     AnalyticsModule,
+    RealtimeModule,
+    RemindersModule,
+    SlackModule,
   ],
 })
 export class AppModule {}

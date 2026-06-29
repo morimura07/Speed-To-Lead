@@ -72,6 +72,8 @@ export type CrmType = 'close' | 'gohighlevel' | 'salesforce' | 'hubspot';
 
 export type RoutingMethod = 'round_robin' | 'percentage';
 
+export type WeekSchedule = Record<string, { start: string; end: string }[]>;
+
 export interface Rep {
   id: string;
   name: string;
@@ -80,7 +82,61 @@ export interface Rep {
   status: 'idle' | 'on_call' | 'off';
   routingPercent: number | null;
   order: number;
+  timezone: string | null;
+  calendarEmail: string | null;
+  availability: WeekSchedule;
+  daysOff: string[];
+  pushoverUserKey: string | null;
+  pairingToken: string | null;
   createdAt: string;
+}
+
+export interface RoutingConfig {
+  routingMethod: RoutingMethod;
+  timezone: string;
+  calendarBusyCheck: boolean;
+}
+
+export interface Reminder {
+  id: string;
+  repId: string;
+  note: string;
+  dueAt: string;
+  status: 'scheduled' | 'rescheduled' | 'completed' | 'canceled' | 'failed';
+  attempts: number;
+  rep?: { name: string };
+}
+
+export interface BookingAlert {
+  id: string;
+  mode: 'triage' | 'closer';
+  title: string;
+  hostEmail: string | null;
+  status: 'pending' | 'alerted' | 'failed';
+  createdAt: string;
+  rep?: { name: string } | null;
+}
+
+export interface SlackChannelConfig {
+  id: string;
+  purpose: 'leads' | 'bookings';
+}
+
+export interface SlackConfig {
+  configured: boolean;
+  eventsUrl: string;
+  teamId: string;
+  bookingMode: 'triage' | 'closer';
+  setterRepId: string | null;
+  channels: SlackChannelConfig[];
+}
+
+export interface AvailabilityInput {
+  timezone?: string;
+  calendarEmail?: string;
+  availability?: WeekSchedule;
+  daysOff?: string[];
+  pushoverUserKey?: string;
 }
 
 export interface CreateRepInput {

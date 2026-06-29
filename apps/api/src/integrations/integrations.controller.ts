@@ -12,6 +12,7 @@ import {
 import type { IntegrationType } from '@prisma/client';
 import { IntegrationsService } from './integrations.service';
 import { CreateIntegrationDto } from './dto/create-integration.dto';
+import { ConfigureSlackDto } from './dto/slack-config.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/auth.types';
@@ -29,6 +30,16 @@ export class IntegrationsController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.integrations.listForOrg(user.orgId);
+  }
+
+  @Get('slack')
+  getSlack(@CurrentUser() user: AuthUser) {
+    return this.integrations.getSlack(user.orgId);
+  }
+
+  @Post('slack')
+  configureSlack(@CurrentUser() user: AuthUser, @Body() dto: ConfigureSlackDto) {
+    return this.integrations.configureSlack(user.orgId, dto);
   }
 
   @Delete(':id')

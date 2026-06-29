@@ -196,6 +196,43 @@ export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; childr
   );
 }
 
+// ── Switch ───────────────────────────────────────────────────────────────────
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="inline-flex items-center gap-3"
+    >
+      <span
+        className={cn(
+          'relative h-6 w-10 rounded-full border transition-colors',
+          checked ? 'border-signal bg-signal/30' : 'border-line bg-ink',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 size-4 rounded-full transition-all',
+            checked ? 'left-[18px] bg-signal' : 'left-0.5 bg-faint',
+          )}
+        />
+      </span>
+      {label && <span className="text-sm text-muted">{label}</span>}
+    </button>
+  );
+}
+
 // ── Card ─────────────────────────────────────────────────────────────────────
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {

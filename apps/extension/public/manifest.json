@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LeadArrow Softphone",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Lightweight softphone — rings the right rep the instant a lead lands.",
   "action": {
     "default_title": "LeadArrow",
@@ -10,6 +10,6 @@
   "background": {
     "service_worker": "service-worker.js"
   },
-  "permissions": ["storage", "notifications"],
-  "host_permissions": ["http://localhost:4000/*"]
+  "permissions": ["storage", "notifications", "offscreen"],
+  "host_permissions": ["http://localhost/*", "https://*/*"]
 }

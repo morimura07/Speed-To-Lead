@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { IntegrationType } from '@prisma/client';
+import { Prisma, type IntegrationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppConfigService } from '../config/config.module';
 import { generateOpaqueToken } from '../common/crypto/token.util';
+import type { ConfigureSlackDto } from './dto/slack-config.dto';
+
+const CRM_TYPES: IntegrationType[] = ['close', 'gohighlevel', 'salesforce', 'hubspot'];
 
 interface IntegrationView {
   id: string;
@@ -57,10 +60,69 @@ export class IntegrationsService {
 
   async listForOrg(orgId: string): Promise<IntegrationView[]> {
     const items = await this.prisma.integration.findMany({
-      where: { orgId },
+      where: { orgId, type: { in: CRM_TYPES } },
       orderBy: { createdAt: 'desc' },
     });
     return items.map((i) => this.toView(i));
+  }
+
+  // ── Slack ─────────────────────────────────────────────────────────────────
+
+  private get slackEventsUrl(): string {
+    return `${this.config.get('API_PUBLIC_URL')}/v1/slack/events`;
+  }
+
+  /** Create or update the org's Slack integration (one per org). */
+  async configureSlack(orgId: string, dto: ConfigureSlackDto) {
+    const config = {
+      teamId: dto.teamId,
+      bookingMode: dto.bookingMode,
+      setterRepId: dto.setterRepId ?? null,
+      channels: dto.channels,
+    };
+    const existing = await this.prisma.integration.findFirst({
+      where: { orgId, type: 'slack' },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await this.prisma.integration.update({
+        where: { id: existing.id },
+        data: { config: config as unknown as Prisma.InputJsonValue, status: 'active' },
+      });
+    } else {
+      await this.prisma.integration.create({
+        data: {
+          orgId,
+          type: 'slack',
+          webhookToken: generateOpaqueToken(24),
+          signingSecret: generateOpaqueToken(16),
+          config: config as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+    return { configured: true, eventsUrl: this.slackEventsUrl, ...config };
+  }
+
+  async getSlack(orgId: string) {
+    const integration = await this.prisma.integration.findFirst({
+      where: { orgId, type: 'slack' },
+    });
+    if (!integration) {
+      return {
+        configured: false,
+        eventsUrl: this.slackEventsUrl,
+        teamId: '',
+        bookingMode: 'closer',
+        setterRepId: null,
+        channels: [],
+      };
+    }
+    return {
+      configured: true,
+      eventsUrl: this.slackEventsUrl,
+      ...(integration.config as object),
+    };
   }
 
   async remove(orgId: string, id: string): Promise<void> {

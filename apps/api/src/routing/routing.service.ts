@@ -6,6 +6,10 @@ import { EventsService } from '../events/events.service';
 import { AppConfigService } from '../config/config.module';
 import { RepsService } from '../reps/reps.service';
 import { TELEPHONY_PROVIDER, type TelephonyProvider } from '../telephony/telephony.types';
+import { REALTIME_NOTIFIER, type RealtimeNotifier } from '../realtime/realtime.types';
+import { PushoverService } from '../notifications/pushover.service';
+
+type AcceptVia = 'phone' | 'extension';
 
 /**
  * The routing engine — a state machine that drives a lead from arrival to a rep
@@ -29,6 +33,8 @@ export class RoutingService {
     private readonly reps: RepsService,
     private readonly config: AppConfigService,
     @Inject(TELEPHONY_PROVIDER) private readonly telephony: TelephonyProvider,
+    @Inject(REALTIME_NOTIFIER) private readonly realtime: RealtimeNotifier,
+    private readonly pushover: PushoverService,
   ) {}
 
   /** Entry point from the routing worker. */
@@ -64,7 +70,7 @@ export class RoutingService {
   async attemptNext(leadId: string): Promise<void> {
     const lead = await this.prisma.lead.findUnique({
       where: { id: leadId },
-      select: { id: true, orgId: true, status: true, name: true },
+      select: { id: true, orgId: true, status: true, name: true, source: true, crmRecordUrl: true },
     });
     if (!lead || lead.status !== 'routing') return; // accepted or dead-ended already
 
@@ -72,7 +78,7 @@ export class RoutingService {
       where: { leadId },
       select: { repId: true },
     });
-    const eligible = await this.reps.findEligible(
+    const eligible = await this.reps.findEligibleNow(
       lead.orgId,
       tried.map((t) => t.repId),
     );
@@ -83,63 +89,104 @@ export class RoutingService {
     }
 
     const rep = await this.selectRep(lead.orgId, eligible);
-    await this.ring(lead.id, lead.orgId, lead.name, rep);
+    await this.ring(lead, rep);
   }
 
-  private async ring(leadId: string, orgId: string, leadName: string, rep: Rep): Promise<void> {
+  /**
+   * Ring a rep across every available channel simultaneously — phone, browser
+   * softphone, and Pushover. The phone call's status callback drives the ring
+   * timeout; the browser is a parallel accept path. Whichever channel the rep
+   * acts on first wins (atomic attempt claim), and the others are cancelled.
+   */
+  private async ring(
+    lead: { id: string; orgId: string; name: string; source: string; crmRecordUrl: string | null },
+    rep: Rep,
+  ): Promise<void> {
     const attempt = await this.prisma.leadAttempt.create({
-      data: { orgId, leadId, repId: rep.id, channel: 'phone' },
+      data: { orgId: lead.orgId, leadId: lead.id, repId: rep.id, channel: 'phone' },
       select: { id: true },
     });
 
-    const base = `${this.config.get('API_PUBLIC_URL')}/v1/telephony`;
-    try {
-      const { callId } = await this.telephony.ringRep({
-        to: rep.phone,
-        answerUrl: `${base}/voice/${attempt.id}`,
-        statusCallbackUrl: `${base}/status/${attempt.id}`,
-        timeoutSeconds: this.config.get('RING_TIMEOUT_SECONDS'),
+    const channels: string[] = [];
+
+    // Phone (also provides the ring timeout via the status callback).
+    if (this.telephony.isConfigured()) {
+      const base = `${this.config.get('API_PUBLIC_URL')}/v1/telephony`;
+      try {
+        const { callId } = await this.telephony.ringRep({
+          to: rep.phone,
+          answerUrl: `${base}/voice/${attempt.id}`,
+          statusCallbackUrl: `${base}/status/${attempt.id}`,
+          timeoutSeconds: this.config.get('RING_TIMEOUT_SECONDS'),
+        });
+        await this.prisma.leadAttempt.update({
+          where: { id: attempt.id },
+          data: { providerCallId: callId },
+        });
+        channels.push('phone');
+      } catch (err) {
+        this.logger.error(`Failed to place call to rep ${rep.id}: ${String(err)}`);
+      }
+    }
+
+    // Browser softphone (only if the rep has a connected extension).
+    if (this.realtime.isOnline(rep.id)) {
+      this.realtime.ringRep(rep.id, {
+        attemptId: attempt.id,
+        leadId: lead.id,
+        name: lead.name,
+        source: lead.source,
+        crmUrl: lead.crmRecordUrl,
       });
-      await this.prisma.leadAttempt.update({
-        where: { id: attempt.id },
-        data: { providerCallId: callId },
-      });
-      await this.events.record({
-        orgId,
-        type: EventType.AlertSent,
-        leadId,
-        repId: rep.id,
-        payload: { attemptId: attempt.id, channel: 'phone' },
-      });
-      this.logger.log(`Ringing rep ${rep.id} for lead ${leadId} (${leadName})`);
-    } catch (err) {
-      // Couldn't place the call — record the failure and move to the next rep.
-      this.logger.error(`Failed to ring rep ${rep.id}: ${String(err)}`);
+      channels.push('extension');
+    }
+
+    // Pushover emergency alert (optional).
+    if (rep.pushoverUserKey && this.pushover.isConfigured()) {
+      await this.pushover.notify(rep.pushoverUserKey, 'New lead', `${lead.name} from ${lead.source}`);
+      channels.push('pushover');
+    }
+
+    if (channels.length === 0) {
+      // No channel could reach this rep — record the failure and move on.
       await this.prisma.leadAttempt.updateMany({
         where: { id: attempt.id, outcome: 'ringing' },
         data: { outcome: 'failed', completedAt: new Date() },
       });
       await this.events.record({
-        orgId,
+        orgId: lead.orgId,
         type: EventType.AlertFailed,
-        leadId,
+        leadId: lead.id,
         repId: rep.id,
-        payload: { attemptId: attempt.id, reason: 'ring_failed' },
+        payload: { attemptId: attempt.id, reason: 'no_channel' },
       });
-      await this.attemptNext(leadId);
+      await this.attemptNext(lead.id);
+      return;
     }
+
+    await this.events.record({
+      orgId: lead.orgId,
+      type: EventType.AlertSent,
+      leadId: lead.id,
+      repId: rep.id,
+      payload: { attemptId: attempt.id, channels },
+    });
+    this.logger.log(`Ringing rep ${rep.id} via ${channels.join('+')} for lead ${lead.id}`);
   }
 
   // ── Inbound transitions (driven by telephony webhooks) ──────────────────────
 
-  /** Rep pressed 1. Returns whether the lead is now (or was already) accepted. */
-  async accept(attemptId: string): Promise<{ accepted: boolean; leadName?: string }> {
+  /** Rep accepted (phone press 1, or extension button). */
+  async accept(
+    attemptId: string,
+    via: AcceptVia = 'phone',
+  ): Promise<{ accepted: boolean; leadName?: string }> {
     const claimed = await this.claim(attemptId, 'accepted', { answered: true });
     const attempt = await this.loadAttempt(attemptId);
     if (!attempt) return { accepted: false };
 
     if (!claimed) {
-      // Already resolved — idempotent for a duplicate press.
+      // Already resolved — idempotent for a duplicate accept on any channel.
       return { accepted: attempt.outcome === 'accepted', leadName: attempt.lead.name };
     }
 
@@ -153,7 +200,7 @@ export class RoutingService {
       type: EventType.AlertAnswered,
       leadId: attempt.leadId,
       repId: attempt.repId,
-      payload: { attemptId },
+      payload: { attemptId, via },
     });
 
     if (leadClaimed.count === 1) {
@@ -162,16 +209,22 @@ export class RoutingService {
         type: EventType.LeadAccepted,
         leadId: attempt.leadId,
         repId: attempt.repId,
-        payload: { attemptId },
+        payload: { attemptId, via },
       });
-      await this.sendCrmLink(attempt.rep.phone, attempt.lead.name, attempt.lead.crmRecordUrl);
+      // Extension accept opens the CRM record in the browser; phone accept texts a link.
+      if (via === 'extension') {
+        this.realtime.openCrm(attempt.repId, attempt.lead.crmRecordUrl ?? '');
+      } else {
+        await this.sendCrmLink(attempt.rep.phone, attempt.lead.name, attempt.lead.crmRecordUrl);
+      }
     }
 
+    await this.cancelOtherChannels(attempt, via);
     return { accepted: true, leadName: attempt.lead.name };
   }
 
-  /** Rep pressed 2 — decline and re-route. */
-  async decline(attemptId: string): Promise<void> {
+  /** Rep declined (phone press 2, or extension button) — re-route. */
+  async decline(attemptId: string, via: AcceptVia = 'phone'): Promise<void> {
     if (!(await this.claim(attemptId, 'declined', { answered: true }))) return;
     const attempt = await this.loadAttempt(attemptId);
     if (!attempt) return;
@@ -181,7 +234,7 @@ export class RoutingService {
       type: EventType.AlertDeclined,
       leadId: attempt.leadId,
       repId: attempt.repId,
-      payload: { attemptId },
+      payload: { attemptId, via },
     });
     await this.events.record({
       orgId: attempt.orgId,
@@ -190,6 +243,7 @@ export class RoutingService {
       repId: attempt.repId,
       payload: { attemptId, reason: 'declined' },
     });
+    await this.cancelOtherChannels(attempt, via);
     await this.attemptNext(attempt.leadId);
   }
 
@@ -207,7 +261,22 @@ export class RoutingService {
       repId: attempt.repId,
       payload: { attemptId, reason },
     });
+    // Dismiss the browser softphone if it was ringing.
+    this.realtime.resolve(attempt.repId, attemptId);
     await this.attemptNext(attempt.leadId);
+  }
+
+  /** When one channel resolves an attempt, stop the others. */
+  private async cancelOtherChannels(
+    attempt: { id: string; repId: string; providerCallId: string | null },
+    via: AcceptVia,
+  ): Promise<void> {
+    // If the rep acted in the browser, hang up the (still-ringing) phone call.
+    if (via !== 'phone' && attempt.providerCallId) {
+      await this.telephony.cancelCall(attempt.providerCallId);
+    }
+    // Always dismiss the browser softphone for this attempt.
+    this.realtime.resolve(attempt.repId, attempt.id);
   }
 
   /** Prompt details for the IVR ("New lead {name} from {source}"). */
@@ -255,6 +324,7 @@ export class RoutingService {
         leadId: true,
         repId: true,
         outcome: true,
+        providerCallId: true,
         rep: { select: { phone: true } },
         lead: { select: { name: true, crmRecordUrl: true } },
       },
@@ -314,20 +384,25 @@ export class RoutingService {
 
   // ── Routing configuration ───────────────────────────────────────────────────
 
-  async getConfig(orgId: string): Promise<{ routingMethod: RoutingMethod }> {
-    const org = await this.prisma.organization.findUniqueOrThrow({
+  async getConfig(orgId: string) {
+    return this.prisma.organization.findUniqueOrThrow({
       where: { id: orgId },
-      select: { routingMethod: true },
+      select: { routingMethod: true, timezone: true, calendarBusyCheck: true },
     });
-    return org;
   }
 
-  async setConfig(orgId: string, routingMethod: RoutingMethod): Promise<{ routingMethod: RoutingMethod }> {
-    const org = await this.prisma.organization.update({
+  async setConfig(
+    orgId: string,
+    patch: { routingMethod?: RoutingMethod; timezone?: string; calendarBusyCheck?: boolean },
+  ) {
+    return this.prisma.organization.update({
       where: { id: orgId },
-      data: { routingMethod },
-      select: { routingMethod: true },
+      data: {
+        ...(patch.routingMethod !== undefined ? { routingMethod: patch.routingMethod } : {}),
+        ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
+        ...(patch.calendarBusyCheck !== undefined ? { calendarBusyCheck: patch.calendarBusyCheck } : {}),
+      },
+      select: { routingMethod: true, timezone: true, calendarBusyCheck: true },
     });
-    return org;
   }
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Card, Select, Spinner } from '../../../components/ui';
-import { integrationsApi, ApiError } from '../../../lib/api';
-import type { CrmType, Integration } from '../../../lib/types';
+import { Alert, Badge, Button, Card, Select, Spinner, TextField } from '../../../components/ui';
+import { integrationsApi, repsApi, ApiError } from '../../../lib/api';
+import type { CrmType, Integration, Rep, SlackChannelConfig, SlackConfig } from '../../../lib/types';
 
 // Only Close is wired in Phase 2; the others get adapters in a later phase.
 const CRM_OPTIONS: { value: CrmType; label: string; available: boolean }[] = [
@@ -110,6 +110,8 @@ export default function IntegrationsPage() {
           ))
         )}
       </section>
+
+      <SlackCard />
     </div>
   );
 }
@@ -191,5 +193,122 @@ function CopyField({ label, value, secret }: { label: string; value: string; sec
         </button>
       </div>
     </div>
+  );
+}
+
+function SlackCard() {
+  const [cfg, setCfg] = useState<SlackConfig | null>(null);
+  const [reps, setReps] = useState<Rep[]>([]);
+  const [teamId, setTeamId] = useState('');
+  const [bookingMode, setBookingMode] = useState<'triage' | 'closer'>('closer');
+  const [setterRepId, setSetterRepId] = useState('');
+  const [channels, setChannels] = useState<SlackChannelConfig[]>([]);
+  const [chId, setChId] = useState('');
+  const [chPurpose, setChPurpose] = useState<'leads' | 'bookings'>('bookings');
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    void Promise.all([integrationsApi.getSlack(), repsApi.list()]).then(([c, r]) => {
+      setCfg(c);
+      setReps(r);
+      setTeamId(c.teamId);
+      setBookingMode(c.bookingMode);
+      setSetterRepId(c.setterRepId ?? '');
+      setChannels(c.channels);
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const next = await integrationsApi.configureSlack({
+        teamId: teamId.trim(),
+        bookingMode,
+        setterRepId: bookingMode === 'triage' ? setterRepId || undefined : undefined,
+        channels,
+      });
+      setCfg(next);
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!cfg) return null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-medium tracking-wide text-muted">
+        Slack <span className="text-faint">— booking alerts & lead source</span>
+      </h2>
+      <Card className="space-y-5 p-6">
+        <CopyField label="Slack Events Request URL" value={cfg.eventsUrl} />
+        <p className="-mt-2 text-xs text-faint">
+          Add this as the Request URL in your Slack app&apos;s Event Subscriptions, then configure
+          below.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField label="Workspace (team) ID" name="teamId" value={teamId} onChange={(e) => setTeamId(e.target.value)} placeholder="T01ABCDEF" />
+          <Select label="Booking mode" name="mode" value={bookingMode} onChange={(e) => setBookingMode(e.target.value as 'triage' | 'closer')}>
+            <option value="closer">Closer — alert the closer by host email</option>
+            <option value="triage">Triage — call a setter to confirm</option>
+          </Select>
+        </div>
+
+        {bookingMode === 'triage' && (
+          <Select label="Setter (confirms bookings)" name="setter" value={setterRepId} onChange={(e) => setSetterRepId(e.target.value)}>
+            <option value="">Select setter…</option>
+            {reps.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+        )}
+
+        <div>
+          <p className="mb-2 text-[11px] font-medium tracking-widest text-faint uppercase">Monitored channels</p>
+          <div className="space-y-2">
+            {channels.map((c) => (
+              <div key={c.id} className="flex items-center gap-2 text-sm">
+                <code className="rounded border border-line bg-ink px-2 py-1 font-mono text-xs text-paper">{c.id}</code>
+                <Badge tone={c.purpose === 'leads' ? 'accent' : 'neutral'}>{c.purpose}</Badge>
+                <button type="button" onClick={() => setChannels((xs) => xs.filter((x) => x.id !== c.id))} className="text-xs text-faint hover:text-signal">
+                  remove
+                </button>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <input value={chId} onChange={(e) => setChId(e.target.value)} placeholder="Channel ID (C01…)" className="h-9 rounded-lg border border-line bg-ink-raised px-3 text-xs text-paper outline-none focus:border-signal/70" />
+              <select value={chPurpose} onChange={(e) => setChPurpose(e.target.value as 'leads' | 'bookings')} className="h-9 rounded-lg border border-line bg-ink-raised px-3 text-xs text-paper outline-none">
+                <option value="bookings">bookings</option>
+                <option value="leads">leads</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (chId && !channels.some((c) => c.id === chId)) {
+                    setChannels((xs) => [...xs, { id: chId.trim(), purpose: chPurpose }]);
+                    setChId('');
+                  }
+                }}
+                className="h-9 rounded-lg border border-line bg-ink-raised px-3 text-xs text-muted hover:text-paper"
+              >
+                Add channel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button onClick={save} loading={saving} className="h-9 px-4 text-xs">Save Slack config</Button>
+          {saved && <span className="text-xs text-mint">Saved ✓</span>}
+          {cfg.configured && <Badge tone="success">connected</Badge>}
+        </div>
+      </Card>
+    </section>
   );
 }

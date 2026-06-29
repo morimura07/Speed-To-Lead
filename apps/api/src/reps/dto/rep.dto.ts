@@ -61,3 +61,29 @@ export class UpdateRepDto {
   @Min(0)
   order?: number;
 }
+
+export class SetAvailabilityDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timezone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
+  calendarEmail?: string;
+
+  /** Weekly schedule keyed by weekday 0–6 → [{ start, end }]. Validated server-side. */
+  @IsOptional()
+  availability?: unknown;
+
+  /** List of "YYYY-MM-DD" days off. Validated server-side. */
+  @IsOptional()
+  daysOff?: unknown;
+
+  /** Optional Pushover user/group key for emergency alerts. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  pushoverUserKey?: string;
+}
