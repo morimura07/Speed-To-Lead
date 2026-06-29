@@ -80,4 +80,10 @@ export class SetAvailabilityDto {
   /** List of "YYYY-MM-DD" days off. Validated server-side. */
   @IsOptional()
   daysOff?: unknown;
+
+  /** Optional Pushover user/group key for emergency alerts. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  pushoverUserKey?: string;
 }

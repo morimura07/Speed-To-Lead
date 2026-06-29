@@ -6,9 +6,12 @@ right sales rep — across mobile, a Chrome softphone, and push — and connects
 seconds. Reps press **1 to accept / 2 to decline**; declines and timeouts cascade to the
 next eligible rep.
 
-> **Status:** Phase 5 — manager control panel: rep availability (windows, days off,
-> timezone), routing eligibility, and the calendar busy-check toggle. (Phases 0–6
-> complete bar Phase 4.) See [`docs/ROADMAP.md`](docs/ROADMAP.md)
+> **Status:** Phase 7 — Slack booking alerts (triage/closer) + Slack lead source +
+> availability-aware follow-up reminder calls. **Phases 0–7 complete.**
+> See [`docs/ROADMAP.md`](docs/ROADMAP.md)
+>
+> Note: follow-up reminders use BullMQ **delayed** jobs, which require Redis
+> `noeviction`. On Upstash set Configuration → Eviction → `noeviction`.
 > for the phased build plan and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the
 > system design.
 

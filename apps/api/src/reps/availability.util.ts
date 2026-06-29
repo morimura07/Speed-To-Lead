@@ -104,3 +104,24 @@ export function isAvailableAt(
   const windows = schedule[String(weekday)] ?? [];
   return windows.some((w) => minutes >= toMinutes(w.start) && minutes < toMinutes(w.end));
 }
+
+/**
+ * The earliest time at or after `from` that the rep is available — used to move
+ * a follow-up reminder to a rep's next free block. Scans in 15-minute steps up
+ * to `maxDays` ahead; returns null if no slot is found in that window.
+ */
+export function nextAvailableFrom(
+  schedule: WeekSchedule,
+  daysOff: string[],
+  timeZone: string,
+  from: Date,
+  maxDays = 14,
+): Date | null {
+  const stepMs = 15 * 60 * 1000;
+  const limit = from.getTime() + maxDays * 86_400_000;
+  for (let t = from.getTime(); t <= limit; t += stepMs) {
+    const at = new Date(t);
+    if (isAvailableAt(schedule, daysOff, timeZone, at)) return at;
+  }
+  return null;
+}

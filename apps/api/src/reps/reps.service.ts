@@ -2,9 +2,12 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { ZodError } from 'zod';
 import { Prisma, type Rep } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppConfigService } from '../config/config.module';
+import { generateOpaqueToken } from '../common/crypto/token.util';
 import { CALENDAR_CHECKER, type CalendarChecker } from '../calendar/calendar.types';
 import {
   isAvailableAt,
+  nextAvailableFrom,
   parseDaysOff,
   parseSchedule,
   validateDaysOff,
@@ -16,6 +19,7 @@ import type { CreateRepDto, SetAvailabilityDto, UpdateRepDto } from './dto/rep.d
 export class RepsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly config: AppConfigService,
     @Inject(CALENDAR_CHECKER) private readonly calendar: CalendarChecker,
   ) {}
 
@@ -108,6 +112,54 @@ export class RepsService {
     return checked.filter((c) => !c.busy).map((c) => c.rep);
   }
 
+  /** Is this specific rep available at `at` (schedule + optional calendar)? */
+  async isAvailable(repId: string, at: Date): Promise<boolean> {
+    const rep = await this.prisma.rep.findUnique({
+      where: { id: repId },
+      select: {
+        orgId: true,
+        active: true,
+        availability: true,
+        daysOff: true,
+        timezone: true,
+        calendarEmail: true,
+      },
+    });
+    if (!rep || !rep.active) return false;
+
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: rep.orgId },
+      select: { timezone: true, calendarBusyCheck: true },
+    });
+    const tz = rep.timezone ?? org.timezone;
+    if (!isAvailableAt(parseSchedule(rep.availability), parseDaysOff(rep.daysOff), tz, at)) {
+      return false;
+    }
+    if (org.calendarBusyCheck && (await this.calendar.isBusy({ repId, calendarEmail: rep.calendarEmail, at }))) {
+      return false;
+    }
+    return true;
+  }
+
+  /** The rep's next available time at/after `from` (schedule-based), or null. */
+  async nextAvailable(repId: string, from: Date): Promise<Date | null> {
+    const rep = await this.prisma.rep.findUnique({
+      where: { id: repId },
+      select: { orgId: true, availability: true, daysOff: true, timezone: true },
+    });
+    if (!rep) return null;
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: rep.orgId },
+      select: { timezone: true },
+    });
+    return nextAvailableFrom(
+      parseSchedule(rep.availability),
+      parseDaysOff(rep.daysOff),
+      rep.timezone ?? org.timezone,
+      from,
+    );
+  }
+
   /** Update a rep's weekly schedule, days off, timezone, and calendar email. */
   async setAvailability(orgId: string, id: string, dto: SetAvailabilityDto): Promise<Rep> {
     await this.ensureOwned(orgId, id);
@@ -123,6 +175,9 @@ export class RepsService {
           ...(dto.daysOff !== undefined
             ? { daysOff: validateDaysOff(dto.daysOff) as Prisma.InputJsonValue }
             : {}),
+          ...(dto.pushoverUserKey !== undefined
+            ? { pushoverUserKey: dto.pushoverUserKey || null }
+            : {}),
         },
       });
     } catch (err) {
@@ -131,6 +186,20 @@ export class RepsService {
       }
       throw err;
     }
+  }
+
+  /**
+   * (Re)generate a pairing token for a rep's Chrome extension and return a
+   * single pairing code (base64url of the API URL + token) to paste into it.
+   */
+  async generatePairing(orgId: string, id: string): Promise<{ pairingCode: string }> {
+    await this.ensureOwned(orgId, id);
+    const token = generateOpaqueToken(24);
+    await this.prisma.rep.update({ where: { id }, data: { pairingToken: token } });
+
+    const payload = JSON.stringify({ url: this.config.get('API_PUBLIC_URL'), token });
+    const pairingCode = Buffer.from(payload, 'utf8').toString('base64url');
+    return { pairingCode };
   }
 
   private async ensureOwned(orgId: string, id: string): Promise<void> {

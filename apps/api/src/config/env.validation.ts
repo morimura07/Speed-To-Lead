@@ -72,6 +72,15 @@ export const envSchema = z.object({
   // Seconds a rep's phone rings before the call is treated as no-answer.
   RING_TIMEOUT_SECONDS: z.coerce.number().int().min(5).max(120).default(25),
 
+  // Pushover (Phase 4) — optional emergency push channel. App token from
+  // https://pushover.net. Per-rep user keys are stored on the rep.
+  PUSHOVER_APP_TOKEN: z.string().optional(),
+
+  // Slack (Phase 7) — one app installed across workspaces. Signing secret
+  // verifies inbound Events API requests; team_id maps an event to an org.
+  SLACK_SIGNING_SECRET: z.string().optional(),
+  SLACK_BOT_TOKEN: z.string().optional(),
+
   // ── Routing worker (Phase 3) ────────────────────────────────────────────────
   // The BullMQ worker that consumes the lead-routing queue. Disable on
   // web-only/processes without Redis (and in tests).

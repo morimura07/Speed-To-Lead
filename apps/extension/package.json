@@ -6,8 +6,11 @@
   "scripts": {
     "build": "node ./scripts/build.mjs",
     "dev": "node ./scripts/build.mjs",
-    "lint": "echo \"(extension) lint added with the Phase 4 build pipeline\" && exit 0",
-    "typecheck": "echo \"(extension) typecheck added with the Phase 4 build pipeline\" && exit 0",
+    "lint": "echo \"(extension) static MV3 package — no lint\" && exit 0",
+    "typecheck": "echo \"(extension) static MV3 package — no typecheck\" && exit 0",
     "test": "echo \"(extension) no tests yet\" && exit 0"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.1"
   }
 }

@@ -7,15 +7,19 @@ import type {
   AuthTokens,
   CreateRepInput,
   AvailabilityInput,
+  BookingAlert,
   CrmType,
   Integration,
   Lead,
   LicenseKey,
   LicenseKeyStatus,
   LicenseKeyType,
+  Reminder,
   Rep,
   RoutingConfig,
   RoutingMethod,
+  SlackChannelConfig,
+  SlackConfig,
   SignupInput,
   SignupRow,
   UserProfile,
@@ -160,6 +164,25 @@ export const integrationsApi = {
     request<Integration>('/integrations', { method: 'POST', body: { type }, ns: 'user' }),
   remove: (id: string) =>
     request<{ ok: true }>(`/integrations/${id}`, { method: 'DELETE', ns: 'user' }),
+  getSlack: () => request<SlackConfig>('/integrations/slack', { ns: 'user' }),
+  configureSlack: (body: {
+    teamId: string;
+    bookingMode: 'triage' | 'closer';
+    setterRepId?: string;
+    channels: SlackChannelConfig[];
+  }) => request<SlackConfig>('/integrations/slack', { method: 'POST', body, ns: 'user' }),
+};
+
+export const remindersApi = {
+  list: () => request<Reminder[]>('/reminders', { ns: 'user' }),
+  create: (body: { repId: string; note: string; dueAt: string; crmTaskId?: string }) =>
+    request<Reminder>('/reminders', { method: 'POST', body, ns: 'user' }),
+  cancel: (id: string) =>
+    request<{ ok: true }>(`/reminders/${id}`, { method: 'DELETE', ns: 'user' }),
+};
+
+export const bookingsApi = {
+  list: () => request<BookingAlert[]>('/bookings', { ns: 'user' }),
 };
 
 export const repsApi = {
@@ -170,6 +193,8 @@ export const repsApi = {
     request<Rep>(`/reps/${id}`, { method: 'PATCH', body: patch, ns: 'user' }),
   setAvailability: (id: string, input: AvailabilityInput) =>
     request<Rep>(`/reps/${id}/availability`, { method: 'PATCH', body: input, ns: 'user' }),
+  generatePairing: (id: string) =>
+    request<{ pairingCode: string }>(`/reps/${id}/pairing`, { method: 'POST', ns: 'user' }),
   remove: (id: string) =>
     request<{ ok: true }>(`/reps/${id}`, { method: 'DELETE', ns: 'user' }),
 };

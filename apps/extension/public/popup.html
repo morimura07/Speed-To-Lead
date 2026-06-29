@@ -11,12 +11,33 @@
       <div class="head">
         <span class="mark"></span>
         <span class="brand">LEADARROW</span>
+        <span class="status" id="status"><span class="dot" id="dot"></span><span id="statusText">…</span></span>
       </div>
-      <div class="status">
-        <span class="dot" id="dot"></span>
-        <span id="statusText">Not connected</span>
+
+      <!-- Pairing view -->
+      <div id="pairView" class="view hidden">
+        <p class="hint">Paste the pairing code from your LeadArrow dashboard (Team → a rep → Generate pairing code).</p>
+        <textarea id="code" rows="3" placeholder="Pairing code"></textarea>
+        <button id="pairBtn" class="btn primary">Connect</button>
+        <p id="pairErr" class="err"></p>
       </div>
-      <p class="hint">Softphone pairing arrives in Phase 4. The foundation is in place.</p>
+
+      <!-- Incoming lead view -->
+      <div id="leadView" class="view hidden">
+        <p class="kicker">INCOMING LEAD</p>
+        <p class="leadName" id="leadName"></p>
+        <p class="leadMeta" id="leadMeta"></p>
+        <div class="row">
+          <button id="acceptBtn" class="btn primary">Accept</button>
+          <button id="declineBtn" class="btn ghost">Decline</button>
+        </div>
+      </div>
+
+      <!-- Idle (paired, no lead) view -->
+      <div id="idleView" class="view hidden">
+        <p class="hint">Connected and listening for leads. You can close this popup.</p>
+        <button id="unpairBtn" class="btn ghost small">Disconnect</button>
+      </div>
     </div>
     <script src="popup.js"></script>
   </body>

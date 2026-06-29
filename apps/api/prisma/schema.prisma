@@ -78,6 +78,25 @@ enum AttemptOutcome {
   failed // no answer / busy / call error
 }
 
+enum BookingMode {
+  triage // call a setter to confirm before the closer takes the call
+  closer // alert the assigned closer directly
+}
+
+enum BookingAlertStatus {
+  pending
+  alerted // a rep was rung
+  failed // no rep could be resolved/reached
+}
+
+enum ReminderStatus {
+  scheduled
+  rescheduled // moved to a rep's next available block
+  completed // the rep was called
+  canceled
+  failed
+}
+
 /// A customer company (tenant). All data is scoped to an organization.
 model Organization {
   id                 String             @id @default(cuid())
@@ -99,13 +118,15 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users        User[]
-  events       Event[]
-  integrations Integration[]
-  leads        Lead[]
-  reps         Rep[]
-  attempts     LeadAttempt[]
-  redeemedKey  LicenseKey?
+  users         User[]
+  events        Event[]
+  integrations  Integration[]
+  leads         Lead[]
+  reps          Rep[]
+  attempts      LeadAttempt[]
+  bookingAlerts BookingAlert[]
+  reminders     FollowUpReminder[]
+  redeemedKey   LicenseKey?
 
   @@map("organizations")
 }
@@ -274,15 +295,61 @@ model Rep {
   availability  Json    @default("{}")
   daysOff       Json    @default("[]")
 
+  // Realtime softphone + push (Phase 4).
+  pairingToken    String? @unique // links a paired Chrome extension to this rep
+  pushoverUserKey String? // optional Pushover user/group key for emergency alerts
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization  Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  organization  Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
   attempts      LeadAttempt[]
-  acceptedLeads Lead[]        @relation("AcceptedLeads")
+  acceptedLeads Lead[]             @relation("AcceptedLeads")
+  bookingAlerts BookingAlert[]
+  reminders     FollowUpReminder[]
 
   @@index([orgId])
   @@map("reps")
+}
+
+/// An appointment posted in Slack that the system alerts a rep about — either a
+/// setter to confirm (triage) or the assigned closer (closer mode).
+model BookingAlert {
+  id        String             @id @default(cuid())
+  orgId     String
+  mode      BookingMode
+  title     String
+  hostEmail String?
+  repId     String?
+  status    BookingAlertStatus @default(pending)
+  raw       Json               @default("{}")
+  createdAt DateTime           @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rep          Rep?         @relation(fields: [repId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@map("booking_alerts")
+}
+
+/// A scheduled call reminding a rep of a CRM follow-up task at a given time.
+/// If the rep is unavailable at `dueAt`, it's moved to their next free block.
+model FollowUpReminder {
+  id        String         @id @default(cuid())
+  orgId     String
+  repId     String
+  crmTaskId String?
+  note      String
+  dueAt     DateTime
+  status    ReminderStatus @default(scheduled)
+  attempts  Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rep          Rep          @relation(fields: [repId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, dueAt])
+  @@map("followup_reminders")
 }
 
 /// One ring of one rep for one lead. The routing state machine transitions an

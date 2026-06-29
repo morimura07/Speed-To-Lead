@@ -288,9 +288,12 @@ function AvailabilityEditor({ rep, orgTz, onSaved }: { rep: Rep; orgTz: string; 
   const [daysOff, setDaysOff] = useState<string[]>(rep.daysOff ?? []);
   const [tz, setTz] = useState(rep.timezone ?? '');
   const [newDayOff, setNewDayOff] = useState('');
+  const [pushover, setPushover] = useState(rep.pushoverUserKey ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairing, setPairing] = useState(false);
 
   function setDay(i: number, patch: Partial<(typeof days)[number]>) {
     setDays((ds) => ds.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
@@ -305,7 +308,12 @@ function AvailabilityEditor({ rep, orgTz, onSaved }: { rep: Rep; orgTz: string; 
       if (d.enabled) availability[String(idx)] = [{ start: d.start, end: d.end }];
     });
     try {
-      await repsApi.setAvailability(rep.id, { availability, daysOff, timezone: tz || undefined });
+      await repsApi.setAvailability(rep.id, {
+        availability,
+        daysOff,
+        timezone: tz || undefined,
+        pushoverUserKey: pushover.trim(),
+      });
       setSaved(true);
       await onSaved();
     } catch (err) {
@@ -370,23 +378,77 @@ function AvailabilityEditor({ rep, orgTz, onSaved }: { rep: Rep; orgTz: string; 
         </div>
       </div>
 
-      {/* Timezone override */}
-      <div className="sm:w-72">
-        <p className="mb-2 text-xs font-medium tracking-widest text-faint uppercase">Timezone</p>
-        <select value={tz} onChange={(e) => setTz(e.target.value)} className="h-10 w-full rounded-lg border border-line bg-ink-raised px-3 text-sm text-paper outline-none focus:border-signal/70">
-          <option value="">Use team default ({orgTz})</option>
-          {timezones().map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+      <div className="grid gap-5 sm:grid-cols-2">
+        {/* Timezone override */}
+        <div>
+          <p className="mb-2 text-xs font-medium tracking-widest text-faint uppercase">Timezone</p>
+          <select value={tz} onChange={(e) => setTz(e.target.value)} className="h-10 w-full rounded-lg border border-line bg-ink-raised px-3 text-sm text-paper outline-none focus:border-signal/70">
+            <option value="">Use team default ({orgTz})</option>
+            {timezones().map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Pushover key */}
+        <div>
+          <p className="mb-2 text-xs font-medium tracking-widest text-faint uppercase">Pushover user key</p>
+          <input
+            value={pushover}
+            onChange={(e) => setPushover(e.target.value)}
+            placeholder="optional — for silent/DND alerts"
+            className="h-10 w-full rounded-lg border border-line bg-ink-raised px-3 text-sm text-paper outline-none focus:border-signal/70"
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <Button onClick={save} loading={saving} className="h-9 px-4 text-xs">Save hours</Button>
+        <Button onClick={save} loading={saving} className="h-9 px-4 text-xs">Save settings</Button>
         {saved && <span className="text-xs text-mint">Saved ✓</span>}
         {error && <span className="text-xs text-signal">{error}</span>}
+      </div>
+
+      {/* Chrome extension pairing */}
+      <div className="border-t border-line/60 pt-5">
+        <p className="mb-2 text-xs font-medium tracking-widest text-faint uppercase">Chrome softphone</p>
+        {pairingCode ? (
+          <div className="space-y-2">
+            <p className="text-xs text-muted">
+              Paste this code into the LeadArrow extension to connect {rep.name}&apos;s browser:
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded-lg border border-line bg-ink-raised px-3 py-2 font-mono text-xs text-paper">
+                {pairingCode}
+              </code>
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard.writeText(pairingCode)}
+                className="shrink-0 rounded-lg border border-line bg-ink-raised px-3 py-2 text-xs text-muted hover:text-paper"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            className="h-9 px-4 text-xs"
+            loading={pairing}
+            onClick={async () => {
+              setPairing(true);
+              try {
+                const { pairingCode: code } = await repsApi.generatePairing(rep.id);
+                setPairingCode(code);
+              } finally {
+                setPairing(false);
+              }
+            }}
+          >
+            Generate pairing code
+          </Button>
+        )}
       </div>
     </div>
   );

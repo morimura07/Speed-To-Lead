@@ -45,6 +45,12 @@ export class RepsController {
     return this.reps.setAvailability(user.orgId, id, dto);
   }
 
+  /** Generate a pairing code to connect this rep's Chrome extension. */
+  @Post(':id/pairing')
+  pairing(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.reps.generatePairing(user.orgId, id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {

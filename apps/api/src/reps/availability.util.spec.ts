@@ -1,6 +1,7 @@
 import {
   isAvailableAt,
   localParts,
+  nextAvailableFrom,
   parseSchedule,
   validateDaysOff,
   validateSchedule,
@@ -60,6 +61,28 @@ describe('isAvailableAt', () => {
     const schedule = { '1': [{ start: '00:00', end: '23:59' }] };
     expect(isAvailableAt(schedule, [], 'America/New_York', BOUNDARY)).toBe(true);
     expect(isAvailableAt(schedule, [], 'Asia/Tokyo', BOUNDARY)).toBe(false);
+  });
+});
+
+describe('nextAvailableFrom', () => {
+  const mon9to5 = { '1': [{ start: '09:00', end: '17:00' }] };
+
+  it('returns the start time when already available', () => {
+    expect(nextAvailableFrom({}, [], 'America/New_York', MON_1330Z)).toEqual(MON_1330Z);
+  });
+
+  it('advances to the next open window in the rep timezone', () => {
+    // NY 02:00 Mon (before the window) → should land at 09:00 Mon NY.
+    const before = new Date('2026-06-29T06:00:00Z'); // 02:00 EDT Mon
+    const next = nextAvailableFrom(mon9to5, [], 'America/New_York', before);
+    expect(next).not.toBeNull();
+    expect(localParts(next!, 'America/New_York').minutes).toBe(9 * 60);
+  });
+
+  it('returns null when no slot exists within the window', () => {
+    // Only Mondays are workable; starting Tuesday with a 2-day horizon finds none.
+    const tue = new Date('2026-06-30T13:00:00Z');
+    expect(nextAvailableFrom(mon9to5, [], 'America/New_York', tue, 2)).toBeNull();
   });
 });
 

@@ -16,6 +16,9 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { RepsModule } from './reps/reps.module';
 import { RoutingModule } from './routing/routing.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { RemindersModule } from './reminders/reminders.module';
+import { SlackModule } from './slack/slack.module';
 
 /**
  * Root module. Feature modules are registered here as each phase lands.
@@ -45,6 +48,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
     RepsModule,
     RoutingModule,
     AnalyticsModule,
+    RealtimeModule,
+    RemindersModule,
+    SlackModule,
   ],
 })
 export class AppModule {}

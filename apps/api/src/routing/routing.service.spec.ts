@@ -24,13 +24,32 @@ function makeService() {
   const telephony = {
     ringRep: jest.fn().mockResolvedValue({ callId: 'CALL' }),
     sendSms: jest.fn().mockResolvedValue(undefined),
-    cancelCall: jest.fn(),
+    cancelCall: jest.fn().mockResolvedValue(undefined),
     isConfigured: jest.fn().mockReturnValue(true),
   };
+  const realtime = {
+    isOnline: jest.fn().mockReturnValue(false),
+    ringRep: jest.fn(),
+    resolve: jest.fn(),
+    openCrm: jest.fn(),
+  };
+  const pushover = {
+    isConfigured: jest.fn().mockReturnValue(false),
+    notify: jest.fn().mockResolvedValue(undefined),
+  };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new RoutingService(prisma as any, events as any, reps as any, config as any, telephony as any);
-  return { service, prisma, events, reps, telephony };
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const service = new RoutingService(
+    prisma as any,
+    events as any,
+    reps as any,
+    config as any,
+    telephony as any,
+    realtime as any,
+    pushover as any,
+  );
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  return { service, prisma, events, reps, telephony, realtime, pushover };
 }
 
 const rep = (id: string, routingPercent: number | null = null) => ({
@@ -195,6 +214,93 @@ describe('RoutingService', () => {
       await service.routeLead('L');
 
       expect(telephony.ringRep).toHaveBeenCalledWith(expect.objectContaining({ to: '+1R2' }));
+    });
+  });
+
+  describe('multi-channel ring', () => {
+    function setupRing(extra: Record<string, unknown> = {}) {
+      const ctx = makeService();
+      ctx.prisma.lead.findUnique
+        .mockResolvedValueOnce({ id: 'L', orgId: 'O', status: 'received' })
+        .mockResolvedValueOnce({
+          id: 'L',
+          orgId: 'O',
+          status: 'routing',
+          name: 'Acme',
+          source: 'close',
+          crmRecordUrl: 'http://crm/1',
+        });
+      ctx.prisma.lead.updateMany.mockResolvedValue({ count: 1 });
+      ctx.prisma.leadAttempt.findMany.mockResolvedValue([]);
+      ctx.reps.findEligibleNow.mockResolvedValue([{ id: 'R1', phone: '+1R1', routingPercent: null, ...extra }]);
+      ctx.prisma.organization.findUniqueOrThrow.mockResolvedValue({ routingMethod: 'round_robin' });
+      ctx.prisma.organization.update.mockResolvedValue({ roundRobinCursor: 1 });
+      ctx.prisma.leadAttempt.create.mockResolvedValue({ id: 'A1' });
+      return ctx;
+    }
+
+    it('rings the browser extension when the rep is online', async () => {
+      const { service, realtime, telephony } = setupRing();
+      realtime.isOnline.mockReturnValue(true);
+
+      await service.routeLead('L');
+
+      expect(telephony.ringRep).toHaveBeenCalled();
+      expect(realtime.ringRep).toHaveBeenCalledWith(
+        'R1',
+        expect.objectContaining({ attemptId: 'A1', leadId: 'L', name: 'Acme', source: 'close', crmUrl: 'http://crm/1' }),
+      );
+    });
+
+    it('sends a Pushover alert when the rep has a key and Pushover is configured', async () => {
+      const { service, pushover } = setupRing({ pushoverUserKey: 'uKEY' });
+      pushover.isConfigured.mockReturnValue(true);
+
+      await service.routeLead('L');
+
+      expect(pushover.notify).toHaveBeenCalledWith('uKEY', 'New lead', expect.stringContaining('Acme'));
+    });
+  });
+
+  describe('cross-channel accept/decline', () => {
+    const attempt = {
+      id: 'A1',
+      orgId: 'O',
+      leadId: 'L',
+      repId: 'R1',
+      outcome: 'accepted',
+      providerCallId: 'CALL',
+      rep: { phone: '+1R1' },
+      lead: { name: 'Acme', crmRecordUrl: 'http://crm/1' },
+    };
+
+    it('extension accept opens the CRM, cancels the phone, and skips SMS', async () => {
+      const { service, prisma, telephony, realtime } = makeService();
+      prisma.leadAttempt.updateMany.mockResolvedValue({ count: 1 });
+      prisma.leadAttempt.findUnique.mockResolvedValue(attempt);
+      prisma.lead.updateMany.mockResolvedValue({ count: 1 });
+
+      const res = await service.accept('A1', 'extension');
+
+      expect(res.accepted).toBe(true);
+      expect(realtime.openCrm).toHaveBeenCalledWith('R1', 'http://crm/1');
+      expect(telephony.cancelCall).toHaveBeenCalledWith('CALL');
+      expect(telephony.sendSms).not.toHaveBeenCalled();
+      expect(realtime.resolve).toHaveBeenCalledWith('R1', 'A1');
+    });
+
+    it('phone accept texts the link, dismisses the browser, and keeps the call', async () => {
+      const { service, prisma, telephony, realtime } = makeService();
+      prisma.leadAttempt.updateMany.mockResolvedValue({ count: 1 });
+      prisma.leadAttempt.findUnique.mockResolvedValue(attempt);
+      prisma.lead.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.accept('A1', 'phone');
+
+      expect(telephony.sendSms).toHaveBeenCalledWith('+1R1', expect.stringContaining('http://crm/1'));
+      expect(telephony.cancelCall).not.toHaveBeenCalled();
+      expect(realtime.openCrm).not.toHaveBeenCalled();
+      expect(realtime.resolve).toHaveBeenCalledWith('R1', 'A1');
     });
   });
 });
