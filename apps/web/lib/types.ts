@@ -72,6 +72,8 @@ export type CrmType = 'close' | 'gohighlevel' | 'salesforce' | 'hubspot';
 
 export type RoutingMethod = 'round_robin' | 'percentage';
 
+export type WeekSchedule = Record<string, { start: string; end: string }[]>;
+
 export interface Rep {
   id: string;
   name: string;
@@ -80,7 +82,24 @@ export interface Rep {
   status: 'idle' | 'on_call' | 'off';
   routingPercent: number | null;
   order: number;
+  timezone: string | null;
+  calendarEmail: string | null;
+  availability: WeekSchedule;
+  daysOff: string[];
   createdAt: string;
+}
+
+export interface RoutingConfig {
+  routingMethod: RoutingMethod;
+  timezone: string;
+  calendarBusyCheck: boolean;
+}
+
+export interface AvailabilityInput {
+  timezone?: string;
+  calendarEmail?: string;
+  availability?: WeekSchedule;
+  daysOff?: string[];
 }
 
 export interface CreateRepInput {

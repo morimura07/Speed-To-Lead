@@ -72,7 +72,7 @@ export class RoutingService {
       where: { leadId },
       select: { repId: true },
     });
-    const eligible = await this.reps.findEligible(
+    const eligible = await this.reps.findEligibleNow(
       lead.orgId,
       tried.map((t) => t.repId),
     );
@@ -314,20 +314,25 @@ export class RoutingService {
 
   // ── Routing configuration ───────────────────────────────────────────────────
 
-  async getConfig(orgId: string): Promise<{ routingMethod: RoutingMethod }> {
-    const org = await this.prisma.organization.findUniqueOrThrow({
+  async getConfig(orgId: string) {
+    return this.prisma.organization.findUniqueOrThrow({
       where: { id: orgId },
-      select: { routingMethod: true },
+      select: { routingMethod: true, timezone: true, calendarBusyCheck: true },
     });
-    return org;
   }
 
-  async setConfig(orgId: string, routingMethod: RoutingMethod): Promise<{ routingMethod: RoutingMethod }> {
-    const org = await this.prisma.organization.update({
+  async setConfig(
+    orgId: string,
+    patch: { routingMethod?: RoutingMethod; timezone?: string; calendarBusyCheck?: boolean },
+  ) {
+    return this.prisma.organization.update({
       where: { id: orgId },
-      data: { routingMethod },
-      select: { routingMethod: true },
+      data: {
+        ...(patch.routingMethod !== undefined ? { routingMethod: patch.routingMethod } : {}),
+        ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
+        ...(patch.calendarBusyCheck !== undefined ? { calendarBusyCheck: patch.calendarBusyCheck } : {}),
+      },
+      select: { routingMethod: true, timezone: true, calendarBusyCheck: true },
     });
-    return org;
   }
 }

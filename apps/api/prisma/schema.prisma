@@ -92,6 +92,10 @@ model Organization {
   routingMethod    RoutingMethod @default(round_robin)
   roundRobinCursor Int           @default(0)
 
+  // Availability configuration (Phase 5).
+  timezone          String  @default("America/New_York") // IANA tz; rep default
+  calendarBusyCheck Boolean @default(false) // skip reps who are calendar-busy
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -261,8 +265,17 @@ model Rep {
   status         RepStatus @default(idle)
   routingPercent Int? // weight for percentage routing (0–100)
   order          Int       @default(0) // tiebreak ordering for round-robin
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+
+  // Availability (Phase 5). `availability` is a weekly schedule keyed by weekday
+  // 0–6 → [{ start, end }] in "HH:MM"; an empty object means "always available".
+  // `daysOff` is a list of "YYYY-MM-DD" dates. `timezone` overrides the org default.
+  timezone      String? // IANA tz; falls back to the org timezone
+  calendarEmail String? // calendar whose free/busy to check (Google, when enabled)
+  availability  Json    @default("{}")
+  daysOff       Json    @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organization  Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
   attempts      LeadAttempt[]

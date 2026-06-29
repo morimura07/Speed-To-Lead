@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { EventsModule } from './events/events.module';
 import { QueueModule } from './queue/queue.module';
 import { TelephonyModule } from './telephony/telephony.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { LicensingModule } from './licensing/licensing.module';
@@ -34,6 +35,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     EventsModule,
     QueueModule,
     TelephonyModule,
+    CalendarModule,
     HealthModule,
     AuthModule,
     LicensingModule,

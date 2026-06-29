@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import type { RoutingMethod } from '@prisma/client';
 import { RoutingService } from './routing.service';
 import { UpdateRoutingConfigDto } from './dto/routing-config.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -18,6 +17,6 @@ export class RoutingConfigController {
 
   @Patch()
   update(@CurrentUser() user: AuthUser, @Body() dto: UpdateRoutingConfigDto) {
-    return this.routing.setConfig(user.orgId, dto.routingMethod as RoutingMethod);
+    return this.routing.setConfig(user.orgId, dto);
   }
 }

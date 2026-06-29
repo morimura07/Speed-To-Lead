@@ -15,7 +15,7 @@ function makeService() {
     organization: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
   };
   const events = { record: jest.fn().mockResolvedValue(undefined) };
-  const reps = { findEligible: jest.fn() };
+  const reps = { findEligibleNow: jest.fn() };
   const config = {
     get: jest.fn((key: string) =>
       key === 'API_PUBLIC_URL' ? 'http://api' : key === 'RING_TIMEOUT_SECONDS' ? 25 : undefined,
@@ -48,7 +48,7 @@ describe('RoutingService', () => {
         .mockResolvedValueOnce({ id: 'L', orgId: 'O', status: 'routing', name: 'Acme' });
       prisma.lead.updateMany.mockResolvedValue({ count: 1 });
       prisma.leadAttempt.findMany.mockResolvedValue([]);
-      reps.findEligible.mockResolvedValue([rep('R1'), rep('R2')]);
+      reps.findEligibleNow.mockResolvedValue([rep('R1'), rep('R2')]);
       prisma.organization.findUniqueOrThrow.mockResolvedValue({ routingMethod: 'round_robin' });
       prisma.organization.update.mockResolvedValue({ roundRobinCursor: 1 });
       prisma.leadAttempt.create.mockResolvedValue({ id: 'A1' });
@@ -86,7 +86,7 @@ describe('RoutingService', () => {
         .mockResolvedValueOnce({ id: 'L', orgId: 'O', status: 'routing', name: 'Acme' });
       prisma.lead.updateMany.mockResolvedValue({ count: 1 });
       prisma.leadAttempt.findMany.mockResolvedValue([]);
-      reps.findEligible.mockResolvedValue([]);
+      reps.findEligibleNow.mockResolvedValue([]);
 
       await service.routeLead('L');
 
@@ -156,14 +156,14 @@ describe('RoutingService', () => {
       // attemptNext:
       prisma.lead.findUnique.mockResolvedValue({ id: 'L', orgId: 'O', status: 'routing', name: 'Acme' });
       prisma.leadAttempt.findMany.mockResolvedValue([{ repId: 'R1' }]);
-      reps.findEligible.mockResolvedValue([rep('R2')]);
+      reps.findEligibleNow.mockResolvedValue([rep('R2')]);
       prisma.organization.findUniqueOrThrow.mockResolvedValue({ routingMethod: 'round_robin' });
       prisma.organization.update.mockResolvedValue({ roundRobinCursor: 2 });
       prisma.leadAttempt.create.mockResolvedValue({ id: 'A2' });
 
       await service.decline('A1');
 
-      expect(reps.findEligible).toHaveBeenCalledWith('O', ['R1']);
+      expect(reps.findEligibleNow).toHaveBeenCalledWith('O', ['R1']);
       expect(telephony.ringRep).toHaveBeenCalledWith(expect.objectContaining({ to: '+1R2' }));
       expect(events.record).toHaveBeenCalledWith(
         expect.objectContaining({ type: EventType.LeadRerouted }),
@@ -188,7 +188,7 @@ describe('RoutingService', () => {
         .mockResolvedValueOnce({ id: 'L', orgId: 'O', status: 'routing', name: 'Acme' });
       prisma.lead.updateMany.mockResolvedValue({ count: 1 });
       prisma.leadAttempt.findMany.mockResolvedValue([]);
-      reps.findEligible.mockResolvedValue([rep('R1', 0), rep('R2', 100)]);
+      reps.findEligibleNow.mockResolvedValue([rep('R1', 0), rep('R2', 100)]);
       prisma.organization.findUniqueOrThrow.mockResolvedValue({ routingMethod: 'percentage' });
       prisma.leadAttempt.create.mockResolvedValue({ id: 'A1' });
 
