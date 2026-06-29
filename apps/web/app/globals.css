@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+/*
+ * LeadArrow design tokens.
+ * A deliberate, solid color system — deep "ink" canvas, soft "paper" text, and a
+ * single high-signal accent (the "ring"). We avoid decorative color gradients;
+ * depth comes from fine line work, spacing, and motion instead.
+ */
+@theme {
+  --color-ink: #0a0b0e;
+  --color-ink-raised: #121319;
+  --color-surface: #16181f;
+  --color-line: #23262f;
+
+  --color-paper: #f3f4f1;
+  --color-muted: #8a8e9a;
+  --color-faint: #585c68;
+
+  --color-signal: #ff5a1f;
+  --color-signal-dim: #b83c12;
+  --color-electric: #5b8def;
+  --color-mint: #3ddc97;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-ring: ring 2.6s var(--ease-out-expo) infinite;
+  --animate-tracer: tracer 3.4s linear infinite;
+  --animate-rise: rise 0.9s var(--ease-out-expo) both;
+  --animate-blink: blink 1.4s steps(2, jump-none) infinite;
+}
+
+@keyframes ring {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes tracer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
