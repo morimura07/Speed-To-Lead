@@ -97,6 +97,15 @@ export interface RoutingConfig {
   calendarBusyCheck: boolean;
 }
 
+export interface BillingStatus {
+  subscriptionStatus: string;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number | null;
+  hasAccess: boolean;
+  billingConfigured: boolean;
+  licenseKey: string | null;
+}
+
 export interface Reminder {
   id: string;
   repId: string;

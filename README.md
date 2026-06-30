@@ -6,8 +6,8 @@ right sales rep — across mobile, a Chrome softphone, and push — and connects
 seconds. Reps press **1 to accept / 2 to decline**; declines and timeouts cascade to the
 next eligible rep.
 
-> **Status:** Phase 7 — Slack booking alerts (triage/closer) + Slack lead source +
-> availability-aware follow-up reminder calls. **Phases 0–7 complete.**
+> **Status:** Phase 8 — Stripe billing (trial → paid), subscription gating, and the
+> marketing site. **Phases 0–8 complete** (only Phase 9: remaining CRMs + hardening).
 > See [`docs/ROADMAP.md`](docs/ROADMAP.md)
 >
 > Note: follow-up reminders use BullMQ **delayed** jobs, which require Redis

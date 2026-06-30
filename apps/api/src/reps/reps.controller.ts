@@ -13,11 +13,12 @@ import {
 import { RepsService } from './reps.service';
 import { CreateRepDto, SetAvailabilityDto, UpdateRepDto } from './dto/rep.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SubscriptionGuard } from '../billing/subscription.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/auth.types';
 
 @Controller('reps')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SubscriptionGuard)
 export class RepsController {
   constructor(private readonly reps: RepsService) {}
 

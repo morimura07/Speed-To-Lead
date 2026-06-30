@@ -2,11 +2,12 @@ import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@ne
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsFilterDto, LeadsQueryDto } from './dto/analytics-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SubscriptionGuard } from '../billing/subscription.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/auth.types';
 
 @Controller('analytics')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SubscriptionGuard)
 export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
 

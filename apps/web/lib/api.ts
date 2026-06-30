@@ -7,6 +7,7 @@ import type {
   AuthTokens,
   CreateRepInput,
   AvailabilityInput,
+  BillingStatus,
   BookingAlert,
   CrmType,
   Integration,
@@ -183,6 +184,11 @@ export const remindersApi = {
 
 export const bookingsApi = {
   list: () => request<BookingAlert[]>('/bookings', { ns: 'user' }),
+};
+
+export const billingApi = {
+  status: () => request<BillingStatus>('/billing/status', { ns: 'user' }),
+  checkout: () => request<{ url: string }>('/billing/checkout', { method: 'POST', ns: 'user' }),
 };
 
 export const repsApi = {

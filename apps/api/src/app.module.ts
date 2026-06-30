@@ -19,6 +19,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { SlackModule } from './slack/slack.module';
+import { BillingModule } from './billing/billing.module';
 
 /**
  * Root module. Feature modules are registered here as each phase lands.
@@ -51,6 +52,7 @@ import { SlackModule } from './slack/slack.module';
     RealtimeModule,
     RemindersModule,
     SlackModule,
+    BillingModule,
   ],
 })
 export class AppModule {}
