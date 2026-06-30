@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -11,6 +12,7 @@ import { CurrentAdmin } from './decorators/current-admin.decorator';
 import type { AuthAdmin, AuthUser } from './auth.types';
 
 @Controller('auth')
+@Throttle({ default: { ttl: 60_000, limit: 20 } }) // tighter than the global default
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 

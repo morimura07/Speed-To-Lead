@@ -1,4 +1,5 @@
 import { Controller, HttpCode, HttpStatus, Logger, Post, Req } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { BillingService } from './billing.service';
@@ -8,6 +9,7 @@ import { BillingService } from './billing.service';
  * applies the event (activate subscription, mark canceled/past_due). Always
  * returns 200 quickly so Stripe doesn't retry on our processing time.
  */
+@SkipThrottle()
 @Controller('billing')
 export class BillingWebhookController {
   private readonly logger = new Logger(BillingWebhookController.name);

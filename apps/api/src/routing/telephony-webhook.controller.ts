@@ -1,4 +1,5 @@
 import { Body, Controller, Header, Param, Post, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import twilio from 'twilio';
 import { RoutingService } from './routing.service';
 import { TwilioWebhookGuard } from '../telephony/twilio-webhook.guard';
@@ -14,6 +15,7 @@ const { VoiceResponse } = twilio.twiml;
  * attempt claims, so these handlers can simply translate Twilio events into
  * RoutingService calls.
  */
+@SkipThrottle()
 @Controller('telephony')
 @UseGuards(TwilioWebhookGuard)
 export class TelephonyWebhookController {

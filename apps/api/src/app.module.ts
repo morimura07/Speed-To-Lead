@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppConfigModule } from './config/config.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { MailModule } from './common/mail/mail.module';
@@ -33,6 +35,9 @@ import { BillingModule } from './billing/billing.module';
 @Module({
   imports: [
     AppConfigModule,
+    // Rate limiting: a generous global default; auth routes set tighter limits,
+    // and signature-verified webhooks skip throttling (they're high-volume).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     LoggingModule,
     MailModule,
     PrismaModule,
@@ -54,5 +59,6 @@ import { BillingModule } from './billing/billing.module';
     SlackModule,
     BillingModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
