@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { adminApi, authApi, clearTokens, getTokens, setTokens } from './api';
+import { adminApi, authApi } from './api';
 import type { AdminProfile, SignupInput, UserProfile } from './types';
 
 type Status = 'loading' | 'authed' | 'guest';
@@ -23,40 +23,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    if (!getTokens('user')) {
-      setStatus('guest');
-      return;
-    }
+    // Restore the session from the httpOnly refresh cookie (if any).
     authApi
-      .me()
+      .restore()
       .then((u) => {
         setUser(u);
-        setStatus('authed');
+        setStatus(u ? 'authed' : 'guest');
       })
-      .catch(() => {
-        clearTokens('user');
-        setStatus('guest');
-      });
+      .catch(() => setStatus('guest'));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: u, tokens } = await authApi.login(email, password);
-    setTokens('user', tokens);
-    setUser(u);
+    setUser(await authApi.login(email, password));
     setStatus('authed');
   }, []);
 
   const signup = useCallback(async (input: SignupInput) => {
-    const { user: u, tokens } = await authApi.signup(input);
-    setTokens('user', tokens);
-    setUser(u);
+    setUser(await authApi.signup(input));
     setStatus('authed');
   }, []);
 
   const logout = useCallback(async () => {
-    const tokens = getTokens('user');
-    if (tokens) await authApi.logout(tokens.refreshToken).catch(() => undefined);
-    clearTokens('user');
+    await authApi.logout();
     setUser(null);
     setStatus('guest');
   }, []);
@@ -90,31 +78,22 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [admin, setAdmin] = useState<AdminProfile | null>(null);
 
   useEffect(() => {
-    if (!getTokens('admin')) {
-      setStatus('guest');
-      return;
-    }
     adminApi
-      .me()
+      .restore()
       .then((a) => {
         setAdmin(a);
-        setStatus('authed');
+        setStatus(a ? 'authed' : 'guest');
       })
-      .catch(() => {
-        clearTokens('admin');
-        setStatus('guest');
-      });
+      .catch(() => setStatus('guest'));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { admin: a, tokens } = await adminApi.login(email, password);
-    setTokens('admin', tokens);
-    setAdmin(a);
+    setAdmin(await adminApi.login(email, password));
     setStatus('authed');
   }, []);
 
   const logout = useCallback(() => {
-    clearTokens('admin');
+    void adminApi.logout();
     setAdmin(null);
     setStatus('guest');
   }, []);

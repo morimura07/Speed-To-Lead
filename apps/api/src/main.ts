@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -17,8 +18,9 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get(AppConfigService);
 
-  // Security headers.
+  // Security headers + cookie parsing (httpOnly refresh-token cookies).
   app.use(helmet());
+  app.use(cookieParser());
 
   // CORS limited to configured origins (the web dashboard, extension, etc.).
   app.enableCors({
