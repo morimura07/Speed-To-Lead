@@ -9,10 +9,12 @@ import {
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { IntegrationsService } from '../integrations/integrations.service';
 import { LeadsService } from '../leads/leads.service';
+import { AppConfigService } from '../config/config.module';
 import { AdapterRegistry } from './adapters/adapter.registry';
 
 /**
@@ -24,12 +26,14 @@ import { AdapterRegistry } from './adapters/adapter.registry';
  * not a bearer token — `:token` only identifies which integration/org the
  * delivery belongs to.
  */
+@SkipThrottle()
 @Controller('ingest')
 export class IngestionController {
   constructor(
     private readonly integrations: IntegrationsService,
     private readonly leads: LeadsService,
     private readonly registry: AdapterRegistry,
+    private readonly config: AppConfigService,
   ) {}
 
   @Post(':source/:token')
@@ -57,6 +61,8 @@ export class IngestionController {
       rawBody,
       headers: req.headers,
       secret: integration.signingSecret,
+      url: `${this.config.get('API_PUBLIC_URL')}/v1/ingest/${source}/${token}`,
+      method: 'POST',
     });
     if (!valid) {
       throw new UnauthorizedException('Invalid webhook signature');

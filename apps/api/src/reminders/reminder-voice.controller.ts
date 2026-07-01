@@ -1,4 +1,5 @@
 import { Controller, Header, Param, Post, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import twilio from 'twilio';
 import { RemindersService } from './reminders.service';
 import { TwilioWebhookGuard } from '../telephony/twilio-webhook.guard';
@@ -10,6 +11,7 @@ const { VoiceResponse } = twilio.twiml;
  * the rep. Shares the /telephony prefix with the routing webhooks but uses
  * distinct paths.
  */
+@SkipThrottle()
 @Controller('telephony')
 @UseGuards(TwilioWebhookGuard)
 export class ReminderVoiceController {

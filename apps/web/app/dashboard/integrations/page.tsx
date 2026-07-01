@@ -5,12 +5,11 @@ import { Alert, Badge, Button, Card, Select, Spinner, TextField } from '../../..
 import { integrationsApi, repsApi, ApiError } from '../../../lib/api';
 import type { CrmType, Integration, Rep, SlackChannelConfig, SlackConfig } from '../../../lib/types';
 
-// Only Close is wired in Phase 2; the others get adapters in a later phase.
 const CRM_OPTIONS: { value: CrmType; label: string; available: boolean }[] = [
   { value: 'close', label: 'Close CRM', available: true },
-  { value: 'hubspot', label: 'HubSpot (soon)', available: false },
-  { value: 'gohighlevel', label: 'GoHighLevel (soon)', available: false },
-  { value: 'salesforce', label: 'Salesforce (soon)', available: false },
+  { value: 'hubspot', label: 'HubSpot', available: true },
+  { value: 'gohighlevel', label: 'GoHighLevel', available: true },
+  { value: 'salesforce', label: 'Salesforce', available: true },
 ];
 
 export default function IntegrationsPage() {

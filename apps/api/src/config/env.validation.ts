@@ -81,6 +81,12 @@ export const envSchema = z.object({
   SLACK_SIGNING_SECRET: z.string().optional(),
   SLACK_BOT_TOKEN: z.string().optional(),
 
+  // Billing (Phase 8) — Stripe. Optional so the app boots without billing;
+  // checkout/subscription flows are unavailable until configured.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_ID: z.string().optional(),
+
   // ── Routing worker (Phase 3) ────────────────────────────────────────────────
   // The BullMQ worker that consumes the lead-routing queue. Disable on
   // web-only/processes without Redis (and in tests).

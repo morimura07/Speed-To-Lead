@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'node:crypto';
+
 /** Provider-agnostic lead shape produced by every CRM adapter. */
 export interface NormalizedLead {
   externalId: string;
@@ -13,6 +15,10 @@ export interface SignatureContext {
   rawBody: string;
   headers: Record<string, string | string[] | undefined>;
   secret: string;
+  /** Absolute request URL (some schemes, e.g. HubSpot v3, sign over it). */
+  url?: string;
+  /** HTTP method (HubSpot v3 signs over it). */
+  method?: string;
 }
 
 /**
@@ -39,4 +45,22 @@ export function headerValue(
 ): string | undefined {
   const raw = headers[name.toLowerCase()];
   return Array.isArray(raw) ? raw[0] : raw;
+}
+
+/** Constant-time compare of two equal-length strings. */
+export function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
+/** Pull the first non-empty string from a list (helper for normalizers). */
+export function firstString(...values: Array<unknown>): string | undefined {
+  for (const v of values) {
+    if (typeof v === 'string' && v.trim().length > 0) return v.trim();
+  }
+  return undefined;
 }

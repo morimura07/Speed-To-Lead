@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req, UnauthorizedException } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { SlackService } from './slack.service';
@@ -8,6 +9,7 @@ import { SlackService } from './slack.service';
  * secret is configured), answers the url_verification handshake, and dispatches
  * message events. Authenticated by signature, not a bearer token.
  */
+@SkipThrottle()
 @Controller('slack')
 export class SlackController {
   constructor(private readonly slack: SlackService) {}

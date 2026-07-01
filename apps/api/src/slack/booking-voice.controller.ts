@@ -1,4 +1,5 @@
 import { Controller, Header, Param, Post, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import twilio from 'twilio';
 import { BookingService } from './booking.service';
 import { TwilioWebhookGuard } from '../telephony/twilio-webhook.guard';
@@ -6,6 +7,7 @@ import { TwilioWebhookGuard } from '../telephony/twilio-webhook.guard';
 const { VoiceResponse } = twilio.twiml;
 
 /** Inbound Twilio voice webhooks for booking-alert calls (reads the booking). */
+@SkipThrottle()
 @Controller('telephony')
 @UseGuards(TwilioWebhookGuard)
 export class BookingVoiceController {

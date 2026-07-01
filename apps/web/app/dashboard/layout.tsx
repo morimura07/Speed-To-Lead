@@ -25,6 +25,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (status === 'guest') router.replace('/login');
   }, [status, router]);
 
+  // Gate the dashboard once a trial has expired and there's no subscription.
+  useEffect(() => {
+    if (status === 'authed' && user) {
+      const o = user.organization;
+      const access =
+        o.subscriptionStatus === 'active' ||
+        (o.subscriptionStatus === 'trialing' && (o.trialDaysRemaining == null || o.trialDaysRemaining > 0));
+      if (!access) router.replace('/billing');
+    }
+  }, [status, user, router]);
+
   if (status !== 'authed' || !user) {
     return (
       <div className="grid min-h-dvh place-items-center bg-ink text-muted">
@@ -65,12 +76,16 @@ function DashboardChrome({
           <Wordmark />
           <div className="flex items-center gap-4">
             {onTrial && org.trialDaysRemaining != null && (
-              <span className="hidden items-center gap-2 rounded-full border border-line bg-ink-raised px-3 py-1.5 sm:inline-flex">
+              <Link
+                href="/billing"
+                className="hidden items-center gap-2 rounded-full border border-line bg-ink-raised px-3 py-1.5 transition-colors hover:border-signal/60 sm:inline-flex"
+                title="Subscribe"
+              >
                 <span className="size-1.5 rounded-full bg-mint" />
                 <span className="font-mono text-[11px] tracking-widest text-muted">
                   TRIAL · {org.trialDaysRemaining}D LEFT
                 </span>
-              </span>
+              </Link>
             )}
             <span className="hidden text-sm text-muted md:inline">{email}</span>
             <Button variant="outline" className="h-9 px-3 text-xs" onClick={() => void logout()}>

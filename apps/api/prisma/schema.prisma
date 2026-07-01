@@ -115,6 +115,10 @@ model Organization {
   timezone          String  @default("America/New_York") // IANA tz; rep default
   calendarBusyCheck Boolean @default(false) // skip reps who are calendar-busy
 
+  // Billing (Phase 8).
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

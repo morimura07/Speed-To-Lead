@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppConfigModule } from './config/config.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { MailModule } from './common/mail/mail.module';
@@ -19,6 +21,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { SlackModule } from './slack/slack.module';
+import { BillingModule } from './billing/billing.module';
 
 /**
  * Root module. Feature modules are registered here as each phase lands.
@@ -32,6 +35,9 @@ import { SlackModule } from './slack/slack.module';
 @Module({
   imports: [
     AppConfigModule,
+    // Rate limiting: a generous global default; auth routes set tighter limits,
+    // and signature-verified webhooks skip throttling (they're high-volume).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     LoggingModule,
     MailModule,
     PrismaModule,
@@ -51,6 +57,8 @@ import { SlackModule } from './slack/slack.module';
     RealtimeModule,
     RemindersModule,
     SlackModule,
+    BillingModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -6,9 +6,9 @@ right sales rep — across mobile, a Chrome softphone, and push — and connects
 seconds. Reps press **1 to accept / 2 to decline**; declines and timeouts cascade to the
 next eligible rep.
 
-> **Status:** Phase 7 — Slack booking alerts (triage/closer) + Slack lead source +
-> availability-aware follow-up reminder calls. **Phases 0–7 complete.**
-> See [`docs/ROADMAP.md`](docs/ROADMAP.md)
+> **Status: feature-complete (Phases 0–9).** All four CRM adapters (Close, HubSpot,
+> GoHighLevel, Salesforce), rate limiting, and a baseline migration are in. See
+> [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 >
 > Note: follow-up reminders use BullMQ **delayed** jobs, which require Redis
 > `noeviction`. On Upstash set Configuration → Eviction → `noeviction`.

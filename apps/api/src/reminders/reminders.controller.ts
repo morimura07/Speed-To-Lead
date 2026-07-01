@@ -2,11 +2,12 @@ import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/c
 import { RemindersService } from './reminders.service';
 import { CreateReminderDto } from './dto/reminder.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SubscriptionGuard } from '../billing/subscription.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/auth.types';
 
 @Controller('reminders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SubscriptionGuard)
 export class RemindersController {
   constructor(private readonly reminders: RemindersService) {}
 
