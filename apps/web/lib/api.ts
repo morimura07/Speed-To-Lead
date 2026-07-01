@@ -4,7 +4,6 @@ import type {
   AnalyticsLeadDetail,
   AnalyticsLeadRow,
   AnalyticsSummary,
-  AuthTokens,
   CreateRepInput,
   AvailabilityInput,
   BillingStatus,
@@ -29,12 +28,8 @@ import type {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const API_BASE = `${API_URL}/v1`;
 
-/** Token namespaces — company users and the platform admin keep separate sessions. */
+/** Session namespaces — company users and the platform admin keep separate sessions. */
 export type Namespace = 'user' | 'admin';
-const STORAGE_KEY: Record<Namespace, string> = {
-  user: 'leadarrow.user.tokens',
-  admin: 'leadarrow.admin.tokens',
-};
 
 export class ApiError extends Error {
   constructor(
@@ -47,20 +42,18 @@ export class ApiError extends Error {
   }
 }
 
-// ── Token storage (client-side) ──────────────────────────────────────────────
+// ── Access tokens (in memory only) ────────────────────────────────────────────
+// The refresh token lives in an httpOnly cookie set by the server (never exposed
+// to JS). Access tokens are short-lived and held only in memory; on reload they
+// are re-minted from the cookie via the refresh endpoint.
 
-export function getTokens(ns: Namespace): AuthTokens | null {
-  if (typeof window === 'undefined') return null;
-  const raw = window.localStorage.getItem(STORAGE_KEY[ns]);
-  return raw ? (JSON.parse(raw) as AuthTokens) : null;
+const accessTokens: Record<Namespace, string | null> = { user: null, admin: null };
+
+function setAccessToken(ns: Namespace, token: string): void {
+  accessTokens[ns] = token;
 }
-
-export function setTokens(ns: Namespace, tokens: AuthTokens): void {
-  window.localStorage.setItem(STORAGE_KEY[ns], JSON.stringify(tokens));
-}
-
-export function clearTokens(ns: Namespace): void {
-  window.localStorage.removeItem(STORAGE_KEY[ns]);
+function clearAccessToken(ns: Namespace): void {
+  accessTokens[ns] = null;
 }
 
 // ── Core request with one-shot token refresh ────────────────────────────────
@@ -76,15 +69,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { method = 'GET', body, ns, retry = true } = options;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-  if (ns) {
-    const tokens = getTokens(ns);
-    if (tokens) headers.Authorization = `Bearer ${tokens.accessToken}`;
-  }
+  if (ns && accessTokens[ns]) headers.Authorization = `Bearer ${accessTokens[ns]}`;
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    credentials: 'include', // send/receive the httpOnly refresh cookie
   });
 
   // Transparently refresh once on an expired access token.
@@ -103,23 +94,22 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return data as T;
 }
 
+/** Re-mint an access token from the httpOnly refresh cookie. */
 async function tryRefresh(ns: Namespace): Promise<boolean> {
-  const tokens = getTokens(ns);
-  if (!tokens) return false;
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${API_BASE}${ns === 'admin' ? '/auth/admin/refresh' : '/auth/refresh'}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+      credentials: 'include',
     });
     if (!res.ok) {
-      clearTokens(ns);
+      clearAccessToken(ns);
       return false;
     }
-    setTokens(ns, (await res.json()) as AuthTokens);
+    const { accessToken } = (await res.json()) as { accessToken: string };
+    setAccessToken(ns, accessToken);
     return true;
   } catch {
-    clearTokens(ns);
+    clearAccessToken(ns);
     return false;
   }
 }
@@ -135,20 +125,22 @@ function extractMessage(data: unknown): string | null {
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 
+async function authenticate<B>(path: string, body: B, ns: Namespace): Promise<UserProfile> {
+  const res = await request<{ user: UserProfile; accessToken: string }>(path, { method: 'POST', body });
+  setAccessToken(ns, res.accessToken);
+  return res.user;
+}
+
 export const authApi = {
-  signup: (input: SignupInput) =>
-    request<{ user: UserProfile; tokens: AuthTokens }>('/auth/signup', {
-      method: 'POST',
-      body: input,
-    }),
-  login: (email: string, password: string) =>
-    request<{ user: UserProfile; tokens: AuthTokens }>('/auth/login', {
-      method: 'POST',
-      body: { email, password },
-    }),
+  signup: (input: SignupInput) => authenticate('/auth/signup', input, 'user'),
+  login: (email: string, password: string) => authenticate('/auth/login', { email, password }, 'user'),
   me: () => request<UserProfile>('/auth/me', { ns: 'user' }),
-  logout: (refreshToken: string) =>
-    request<{ ok: true }>('/auth/logout', { method: 'POST', body: { refreshToken } }),
+  /** Restore a session on load: mint an access token from the cookie, then fetch the profile. */
+  restore: async (): Promise<UserProfile | null> => ((await tryRefresh('user')) ? authApi.me() : null),
+  logout: async () => {
+    await request<{ ok: true }>('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    clearAccessToken('user');
+  },
   forgotPassword: (email: string) =>
     request<{ ok: true }>('/auth/forgot-password', { method: 'POST', body: { email } }),
   resetPassword: (token: string, password: string) =>
@@ -228,12 +220,21 @@ export const analyticsApi = {
 };
 
 export const adminApi = {
-  login: (email: string, password: string) =>
-    request<{ admin: AdminProfile; tokens: AuthTokens }>('/auth/admin/login', {
+  login: async (email: string, password: string): Promise<AdminProfile> => {
+    const res = await request<{ admin: AdminProfile; accessToken: string }>('/auth/admin/login', {
       method: 'POST',
       body: { email, password },
-    }),
+    });
+    setAccessToken('admin', res.accessToken);
+    return res.admin;
+  },
   me: () => request<AdminProfile>('/auth/admin/me', { ns: 'admin' }),
+  restore: async (): Promise<AdminProfile | null> =>
+    (await tryRefresh('admin')) ? adminApi.me() : null,
+  logout: async () => {
+    await request<{ ok: true }>('/auth/admin/logout', { method: 'POST' }).catch(() => undefined);
+    clearAccessToken('admin');
+  },
   listKeys: (status?: LicenseKeyStatus) =>
     request<{ items: LicenseKey[]; total: number }>(
       `/admin/license-keys${status ? `?status=${status}` : ''}`,

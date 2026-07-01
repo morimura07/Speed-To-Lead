@@ -46,6 +46,17 @@ export const envSchema = z.object({
   // Public base URL of the web app (used to build password-reset links).
   APP_URL: z.string().url().default('http://localhost:3000'),
 
+  // ── Email (optional) ────────────────────────────────────────────────────────
+  // SMTP transport for transactional mail (password resets, license keys, billing
+  // confirmations). Works with any provider (SES, Postmark, Mailgun, …). When
+  // SMTP_HOST is unset, mail is logged to the console instead of sent.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: zBool(false), // true for port 465 (implicit TLS)
+  MAIL_FROM: z.string().default('LeadArrow <noreply@leadarrow.local>'),
+
   // Public base URL of this API (used to build inbound CRM webhook URLs).
   API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
 
