@@ -303,6 +303,9 @@ model Rep {
   pairingToken    String? @unique // links a paired Chrome extension to this rep
   pushoverUserKey String? // optional Pushover user/group key for emergency alerts
 
+  // SMS compliance: set when the rep texts STOP; suppresses further SMS.
+  smsOptedOut Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

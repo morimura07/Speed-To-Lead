@@ -122,8 +122,20 @@ export default function SignupPage() {
           name="smsConsent"
           checked={smsConsent}
           onChange={(e) => setSmsConsent(e.target.checked)}
-          label="I agree to receive calls and SMS notifications about incoming leads."
+          label="I agree to receive calls and SMS notifications about incoming leads at the phone number provided."
         />
+        <p className="text-xs leading-relaxed text-muted">
+          Consent is optional and not a condition of purchase. Message frequency varies, and message
+          and data rates may apply. Reply STOP to unsubscribe or HELP for help. See our{' '}
+          <Link href="/privacy" className="text-signal hover:underline">
+            Privacy Policy
+          </Link>{' '}
+          and{' '}
+          <Link href="/terms" className="text-signal hover:underline">
+            Terms
+          </Link>
+          .
+        </p>
         <Button type="submit" loading={submitting} className="w-full">
           Create account
         </Button>

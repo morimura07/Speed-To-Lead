@@ -11,5 +11,12 @@
     "service_worker": "service-worker.js"
   },
   "permissions": ["storage", "notifications", "offscreen"],
-  "host_permissions": ["http://localhost/*", "https://*/*"]
+  "host_permissions": [
+    "http://103.179.45.26/*",
+    "ws://103.179.45.26/*",
+    "https://*/*",
+    "wss://*/*",
+    "http://localhost/*",
+    "ws://localhost/*"
+  ]
 }

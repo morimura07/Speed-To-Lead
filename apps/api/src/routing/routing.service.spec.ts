@@ -37,6 +37,7 @@ function makeService() {
     isConfigured: jest.fn().mockReturnValue(false),
     notify: jest.fn().mockResolvedValue(undefined),
   };
+  const attemptTimeout = { schedule: jest.fn().mockResolvedValue(undefined) };
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const service = new RoutingService(
@@ -47,9 +48,10 @@ function makeService() {
     telephony as any,
     realtime as any,
     pushover as any,
+    attemptTimeout as any,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  return { service, prisma, events, reps, telephony, realtime, pushover };
+  return { service, prisma, events, reps, telephony, realtime, pushover, attemptTimeout };
 }
 
 const rep = (id: string, routingPercent: number | null = null) => ({
@@ -86,6 +88,24 @@ describe('RoutingService', () => {
       expect(prisma.leadAttempt.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { providerCallId: 'CALL' } }),
       );
+    });
+
+    it('schedules a backstop timeout for the attempt', async () => {
+      const { service, prisma, reps, attemptTimeout } = makeService();
+      prisma.lead.findUnique
+        .mockResolvedValueOnce({ id: 'L', orgId: 'O', status: 'received' })
+        .mockResolvedValueOnce({ id: 'L', orgId: 'O', status: 'routing', name: 'Acme', source: 'close', crmRecordUrl: null });
+      prisma.lead.updateMany.mockResolvedValue({ count: 1 });
+      prisma.leadAttempt.findMany.mockResolvedValue([]);
+      reps.findEligibleNow.mockResolvedValue([rep('R1')]);
+      prisma.organization.findUniqueOrThrow.mockResolvedValue({ routingMethod: 'round_robin' });
+      prisma.organization.update.mockResolvedValue({ roundRobinCursor: 1 });
+      prisma.leadAttempt.create.mockResolvedValue({ id: 'A1' });
+
+      await service.routeLead('L');
+
+      // RING_TIMEOUT_SECONDS (25) + 10s buffer = 35_000ms.
+      expect(attemptTimeout.schedule).toHaveBeenCalledWith('A1', 35_000);
     });
 
     it('does nothing if the lead is already being routed (claim loses the race)', async () => {
@@ -301,6 +321,18 @@ describe('RoutingService', () => {
       expect(telephony.cancelCall).not.toHaveBeenCalled();
       expect(realtime.openCrm).not.toHaveBeenCalled();
       expect(realtime.resolve).toHaveBeenCalledWith('R1', 'A1');
+    });
+
+    it('does not text a rep who has opted out of SMS', async () => {
+      const { service, prisma, telephony } = makeService();
+      prisma.leadAttempt.updateMany.mockResolvedValue({ count: 1 });
+      prisma.leadAttempt.findUnique.mockResolvedValue({ ...attempt, rep: { phone: '+1R1', smsOptedOut: true } });
+      prisma.lead.updateMany.mockResolvedValue({ count: 1 });
+
+      const res = await service.accept('A1', 'phone');
+
+      expect(res.accepted).toBe(true);
+      expect(telephony.sendSms).not.toHaveBeenCalled();
     });
   });
 });

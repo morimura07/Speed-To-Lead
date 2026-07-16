@@ -8,6 +8,7 @@ import { RepsService } from '../reps/reps.service';
 import { TELEPHONY_PROVIDER, type TelephonyProvider } from '../telephony/telephony.types';
 import { REALTIME_NOTIFIER, type RealtimeNotifier } from '../realtime/realtime.types';
 import { PushoverService } from '../notifications/pushover.service';
+import { AttemptTimeoutDispatcher } from './attempt-timeout.dispatcher';
 
 type AcceptVia = 'phone' | 'extension';
 
@@ -35,6 +36,7 @@ export class RoutingService {
     @Inject(TELEPHONY_PROVIDER) private readonly telephony: TelephonyProvider,
     @Inject(REALTIME_NOTIFIER) private readonly realtime: RealtimeNotifier,
     private readonly pushover: PushoverService,
+    private readonly attemptTimeout: AttemptTimeoutDispatcher,
   ) {}
 
   /** Entry point from the routing worker. */
@@ -171,6 +173,12 @@ export class RoutingService {
       repId: rep.id,
       payload: { attemptId: attempt.id, channels },
     });
+
+    // Backstop timeout in case no telephony status callback ever arrives.
+    await this.attemptTimeout.schedule(
+      attempt.id,
+      (this.config.get('RING_TIMEOUT_SECONDS') + 10) * 1000,
+    );
     this.logger.log(`Ringing rep ${rep.id} via ${channels.join('+')} for lead ${lead.id}`);
   }
 
@@ -211,11 +219,14 @@ export class RoutingService {
         repId: attempt.repId,
         payload: { attemptId, via },
       });
-      // Extension accept opens the CRM record in the browser; phone accept texts a link.
+      // Extension accept opens the CRM record in the browser; phone accept texts
+      // a link (unless the rep has opted out of SMS).
       if (via === 'extension') {
         this.realtime.openCrm(attempt.repId, attempt.lead.crmRecordUrl ?? '');
-      } else {
+      } else if (!attempt.rep.smsOptedOut) {
         await this.sendCrmLink(attempt.rep.phone, attempt.lead.name, attempt.lead.crmRecordUrl);
+      } else {
+        this.logger.debug(`Rep ${attempt.repId} opted out of SMS; skipping CRM-link text`);
       }
     }
 
@@ -325,7 +336,7 @@ export class RoutingService {
         repId: true,
         outcome: true,
         providerCallId: true,
-        rep: { select: { phone: true } },
+        rep: { select: { phone: true, smsOptedOut: true } },
         lead: { select: { name: true, crmRecordUrl: true } },
       },
     });

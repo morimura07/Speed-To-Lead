@@ -6,6 +6,8 @@ import { RoutingWorker } from './routing.worker';
 import { RoutingConfigController } from './routing-config.controller';
 import { TelephonyWebhookController } from './telephony-webhook.controller';
 import { PushoverService } from '../notifications/pushover.service';
+import { AttemptTimeoutDispatcher } from './attempt-timeout.dispatcher';
+import { AttemptTimeoutWorker } from './attempt-timeout.worker';
 
 /**
  * The routing engine: the state machine (RoutingService), the queue worker that
@@ -18,7 +20,13 @@ import { PushoverService } from '../notifications/pushover.service';
 @Module({
   imports: [AuthModule, RepsModule],
   controllers: [RoutingConfigController, TelephonyWebhookController],
-  providers: [RoutingService, RoutingWorker, PushoverService],
+  providers: [
+    RoutingService,
+    RoutingWorker,
+    PushoverService,
+    AttemptTimeoutDispatcher,
+    AttemptTimeoutWorker,
+  ],
   exports: [RoutingService],
 })
 export class RoutingModule {}

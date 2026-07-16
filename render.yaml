@@ -1,0 +1,70 @@
+# Render blueprint for the LeadArrow API (single-instance: HTTP + WebSocket +
+# in-process workers). The web app deploys separately on Vercel; Postgres is
+# Neon and Redis is Upstash (external). Secrets marked `sync: false` are set in
+# the Render dashboard, not committed.
+services:
+  - type: web
+    name: leadarrow-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health/live
+    # Apply DB migrations once per deploy, before traffic shifts.
+    preDeployCommand: pnpm --filter @leadarrow/api prisma:deploy
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: ROUTING_WORKER_ENABLED
+        value: true
+      # Public origins (set to your domains once DNS is live).
+      - key: APP_URL
+        sync: false # https://app.<domain>
+      - key: API_PUBLIC_URL
+        sync: false # https://api.<domain>
+      - key: CORS_ORIGINS
+        sync: false # https://app.<domain>
+      # Datastores.
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # Auth secrets (generate strong values).
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: PLATFORM_ADMIN_EMAIL
+        sync: false
+      - key: PLATFORM_ADMIN_PASSWORD
+        sync: false
+      # Providers (add as each is activated).
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: PUSHOVER_APP_TOKEN
+        sync: false
+      # Email (SMTP).
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false

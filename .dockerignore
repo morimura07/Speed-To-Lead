@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+.git
+.github
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+leadarrow-softphone
+leadarrow-softphone.zip
+apps/extension/dist

@@ -144,6 +144,8 @@ export default function Home() {
           <Wordmark />
           <p className="font-mono text-[11px] tracking-widest text-faint">© LEADARROW</p>
           <div className="flex gap-4 text-sm text-muted">
+            <Link href="/privacy" className="hover:text-paper">Privacy</Link>
+            <Link href="/terms" className="hover:text-paper">Terms</Link>
             <Link href="/login" className="hover:text-paper">Sign in</Link>
             <Link href="/signup" className="hover:text-paper">Start trial</Link>
           </div>
