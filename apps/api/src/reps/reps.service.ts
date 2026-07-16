@@ -188,6 +188,15 @@ export class RepsService {
     }
   }
 
+  /** Record an SMS opt-out/opt-in for every rep with this phone number. */
+  async setSmsOptOut(phone: string, optedOut: boolean): Promise<number> {
+    const result = await this.prisma.rep.updateMany({
+      where: { phone: phone.trim() },
+      data: { smsOptedOut: optedOut },
+    });
+    return result.count;
+  }
+
   /**
    * (Re)generate a pairing token for a rep's Chrome extension and return a
    * single pairing code (base64url of the API URL + token) to paste into it.

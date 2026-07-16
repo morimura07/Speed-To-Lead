@@ -48,7 +48,9 @@ function stopRing() {
 
 function connect(url, token) {
   if (socket) socket.disconnect();
-  socket = io(url, { auth: { token }, transports: ['websocket', 'polling'], reconnection: true });
+  // Polling first so the connection works even if the websocket upgrade is
+  // blocked by host permissions; it upgrades to websocket when allowed.
+  socket = io(url, { auth: { token }, transports: ['polling', 'websocket'], reconnection: true });
 
   socket.on('connect', () => send({ type: 'status', connected: true }));
   socket.on('disconnect', () => send({ type: 'status', connected: false }));

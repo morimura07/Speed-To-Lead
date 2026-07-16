@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import type { Request, Response } from 'express';
 
 interface ErrorBody {
@@ -61,6 +62,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      // Report server errors to Sentry (no-op when Sentry isn't configured).
+      Sentry.captureException(exception);
       this.logger.error(
         `${request.method} ${request.url} -> ${status}`,
         exception instanceof Error ? exception.stack : String(exception),

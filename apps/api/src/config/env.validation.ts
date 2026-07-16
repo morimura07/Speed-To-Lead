@@ -98,6 +98,10 @@ export const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_ID: z.string().optional(),
 
+  // Error tracking (optional). Read directly by instrument.ts before this runs;
+  // declared here so it isn't stripped as an unknown var.
+  SENTRY_DSN: z.string().optional(),
+
   // ── Routing worker (Phase 3) ────────────────────────────────────────────────
   // The BullMQ worker that consumes the lead-routing queue. Disable on
   // web-only/processes without Redis (and in tests).
