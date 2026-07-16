@@ -12,6 +12,10 @@ export default function PrivacyPage() {
           sales teams. This policy explains what data we process and why. It applies to the
           LeadArrow application and website.
         </p>
+        <p>
+          LeadArrow is operated by <strong>Eliot Samurin</strong> as a sole proprietor. You can
+          reach us using the contact details at the end of this policy.
+        </p>
       </Section>
       <Section heading="Information we process">
         <p>
@@ -47,7 +51,18 @@ export default function PrivacyPage() {
         <p>
           By adding a rep&apos;s phone number and enabling notifications, you confirm you have the
           right to contact that number by call and SMS. Recipients can opt out of SMS at any time
-          by replying <strong>STOP</strong>; we honor opt-outs and suppress further messages.
+          by replying <strong>STOP</strong>, or get help by replying <strong>HELP</strong>; we
+          honor opt-outs and suppress further messages. Message frequency varies, and message and
+          data rates may apply.
+        </p>
+        <p>
+          <strong>
+            We do not sell or share mobile phone numbers or SMS consent information with third
+            parties for marketing or promotional purposes.
+          </strong>{' '}
+          Phone numbers are used solely to deliver the alerting and routing service you configure,
+          and are shared only with the service providers (such as our telephony provider) needed to
+          send those messages on your behalf.
         </p>
       </Section>
       <Section heading="Data retention & your rights">
@@ -58,7 +73,7 @@ export default function PrivacyPage() {
         </p>
       </Section>
       <Section heading="Contact">
-        <p>Questions about this policy: privacy@leadarrow.example (replace with your address).</p>
+        <p>Questions about this policy: privacy@getleadarrow.com.</p>
       </Section>
     </LegalShell>
   );

@@ -55,7 +55,7 @@ export default function TermsPage() {
         </p>
       </Section>
       <Section heading="Contact">
-        <p>Questions about these terms: legal@leadarrow.example (replace with your address).</p>
+        <p>Questions about these terms: legal@getleadarrow.com.</p>
       </Section>
     </LegalShell>
   );
