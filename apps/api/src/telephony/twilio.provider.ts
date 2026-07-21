@@ -52,11 +52,13 @@ export class TwilioProvider implements TelephonyProvider {
   }
 
   async sendSms(to: string, body: string): Promise<void> {
-    await this.getClient().messages.create({
-      to,
-      from: this.config.get('TWILIO_FROM_NUMBER')!,
-      body,
-    });
+    // Prefer the A2P Messaging Service (campaign association + Advanced Opt-Out)
+    // when configured; otherwise fall back to the bare from-number.
+    const messagingServiceSid = this.config.get('TWILIO_MESSAGING_SERVICE_SID');
+    const sender = messagingServiceSid
+      ? { messagingServiceSid }
+      : { from: this.config.get('TWILIO_FROM_NUMBER')! };
+    await this.getClient().messages.create({ to, body, ...sender });
   }
 
   async cancelCall(callId: string): Promise<void> {
