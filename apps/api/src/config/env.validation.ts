@@ -77,6 +77,11 @@ export const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
+  // A2P 10DLC: the Messaging Service the approved campaign is attached to. When
+  // set, SMS is sent through this service (not the bare from-number) so messages
+  // are associated with the campaign and Twilio's Advanced Opt-Out (STOP/HELP
+  // auto-replies) applies. Falls back to TWILIO_FROM_NUMBER when unset.
+  TWILIO_MESSAGING_SERVICE_SID: z.string().optional(),
   // Validate inbound Twilio webhook signatures. Auto-skips when no auth token
   // is configured (local dev). Set to "false" to force-disable.
   TWILIO_VALIDATE_SIGNATURE: zBool(true),
