@@ -3,9 +3,16 @@
   "name": "LeadArrow Softphone",
   "version": "0.1.0",
   "description": "Lightweight softphone — rings the right rep the instant a lead lands.",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
   "action": {
     "default_title": "LeadArrow",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
   },
   "background": {
     "service_worker": "service-worker.js"
